@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef FS_PROTOCOLGAME_H_FACA2A2D1A9348B78E8FD7E8003EBB87
-#define FS_PROTOCOLGAME_H_FACA2A2D1A9348B78E8FD7E8003EBB87
+#ifndef FS_PROTOCOLGAME_H
+#define FS_PROTOCOLGAME_H
 
 #include "protocol.h"
 #include "chat.h"
@@ -66,7 +66,7 @@ class ProtocolGame final : public Protocol
 
 		explicit ProtocolGame(Connection_ptr connection) : Protocol(connection) {}
 
-		void login(const std::string& name, uint32_t accountId);
+		void login(const std::string& name, uint32_t accountId, OperatingSystem_t operatingSystem);
 		void spectate(const std::string& name, const std::string& password);
 		void logout(bool displayEffect, bool forced);
 
@@ -87,7 +87,7 @@ class ProtocolGame final : public Protocol
 		ProtocolGame_ptr getThis() {
 			return std::static_pointer_cast<ProtocolGame>(shared_from_this());
 		}
-		void connect(uint32_t playerId);
+		void connect(uint32_t playerId, OperatingSystem_t operatingSystem);
 		void disconnectClient(const std::string& message) const;
 		void writeToOutputBuffer(const NetworkMessage& msg);
 
@@ -181,7 +181,7 @@ class ProtocolGame final : public Protocol
 		void sendCreatureHealth(const Creature* creature);
 		void sendSkills();
 		void sendPing();
-		void sendCreatureTurn(const Creature* creature, uint32_t stackPos);
+		void sendCreatureTurn(const Creature* creature, uint32_t stackpos);
 		void sendCreatureSay(const Creature* creature, SpeakClasses type, const std::string& text, const Position* pos = nullptr);
 
 		void sendCancelWalk();
@@ -203,7 +203,6 @@ class ProtocolGame final : public Protocol
 		void sendCloseShop();
 		void sendSaleItemList(const std::list<ShopInfo>& shop);
 		void sendMarketEnter();
-		void sendMarketLeave();
 		void sendMarketBrowseItem(uint16_t itemId, const MarketOfferList& buyOffers, const MarketOfferList& sellOffers);
 		void sendMarketAcceptOffer(const MarketOfferEx& offer);
 		void sendMarketBrowseOwnOffers(const MarketOfferList& buyOffers, const MarketOfferList& sellOffers);
@@ -226,6 +225,7 @@ class ProtocolGame final : public Protocol
 		void sendAnimatedText(const std::string& message, const Position& pos, TextColor_t color);
 
 		void sendCreatureLight(const Creature* creature);
+		void sendWorldLight(LightInfo lightInfo);
 
 		void sendCreatureSquare(const Creature* creature, SquareColor_t color);
 
@@ -313,8 +313,6 @@ class ProtocolGame final : public Protocol
 		void spectatorSay(const std::string text, uint16_t channelId);
 		void sendCastChannel();
 		void syncOpenContainers();
-
-		OperatingSystem_t operatingSystem = CLIENTOS_NONE;
 
 		int64_t lastSpectatorTurn = 0;
 		bool isSpectator = false;

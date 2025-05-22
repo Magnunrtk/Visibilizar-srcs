@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef FS_PLAYER_H_4083D3D3A05B4EDE891B31BB720CD06F
-#define FS_PLAYER_H_4083D3D3A05B4EDE891B31BB720CD06F
+#ifndef FS_PLAYER_H
+#define FS_PLAYER_H
 
 #include "creature.h"
 #include "container.h"
@@ -101,6 +101,8 @@ using MuteCountMap = std::map<uint32_t, uint32_t>;
 
 static constexpr int32_t PLAYER_MAX_SPEED = 1500;
 static constexpr int32_t PLAYER_MIN_SPEED = 10;
+
+static constexpr int32_t PLAYER_SEARCHDIST = 9;
 
 class Player final : public Creature, public Cylinder
 {
@@ -906,11 +908,13 @@ class Player final : public Creature, public Cylinder
 				client->sendCancelTarget();
 			}
 		}
-		void sendCancelWalk() const {
+		void sendCancelWalk() const
+		{
 			if (client) {
 				client->sendCancelWalk();
 			}
 		}
+		
 		void sendChangeSpeed(const Creature* creature, uint32_t newSpeed) const {
 			if (client) {
 				client->sendChangeSpeed(creature, newSpeed);
@@ -1000,12 +1004,6 @@ class Player final : public Creature, public Cylinder
 				client->sendMarketEnter();
 			}
 		}
-		void sendMarketLeave() {
-			inMarket = false;
-			if (client) {
-				client->sendMarketLeave();
-			}
-		}
 		void sendMarketBrowseItem(uint16_t itemId, const MarketOfferList& buyOffers, const MarketOfferList& sellOffers) const {
 			if (client) {
 				client->sendMarketBrowseItem(itemId, buyOffers, sellOffers);
@@ -1044,6 +1042,11 @@ class Player final : public Creature, public Cylinder
 		void sendTradeClose() const {
 			if (client) {
 				client->sendCloseTrade();
+			}
+		}
+		void sendWorldLight(LightInfo lightInfo) {
+			if (client) {
+				client->sendWorldLight(lightInfo);
 			}
 		}
 		void sendChannelsDialog() {

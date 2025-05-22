@@ -68,6 +68,12 @@ Game::~Game()
 void Game::start(ServiceManager* manager)
 {
 	serviceManager = manager;
+	updateWorldTime();
+
+	if (g_config.getBoolean(ConfigManager::DEFAULT_WORLD_LIGHT)) {
+		g_scheduler.addEvent(createSchedulerTask(EVENT_LIGHTINTERVAL, std::bind(&Game::checkLight, this)));
+	}
+	
 	g_scheduler.addEvent(createSchedulerTask(EVENT_CREATURE_THINK_INTERVAL, std::bind(&Game::checkCreatures, this, 0)));
 	g_scheduler.addEvent(createSchedulerTask(EVENT_DECAYINTERVAL, std::bind(&Game::checkDecay, this)));
 }
@@ -153,7 +159,7 @@ void Game::setGameState(GameState_t newState)
 	}
 }
 
-void Game::saveGameState()
+void Game::saveGameState(bool crash /*= false*/)
 {
 	if (gameState == GAME_STATE_NORMAL) {
 		setGameState(GAME_STATE_MAINTAIN);
@@ -166,7 +172,11 @@ void Game::saveGameState()
 	}
 
 	for (const auto& it : players) {
-		it.second->loginPosition = it.second->getPosition();
+		if (crash) {
+			it.second->loginPosition = it.second->getTown()->getTemplePosition();
+		} else {
+			it.second->loginPosition = it.second->getPosition();
+		}
 		IOLoginData::savePlayer(it.second);
 	}
 	
@@ -223,20 +233,6 @@ Thing* Game::internalGetThing(Player* player, const Position& pos, int32_t index
 				} else {
 					thing = tile->getTopVisibleCreature(player);
 				}
-				if (player && tile->hasFlag(TILESTATE_SUPPORTS_HANGABLE)) {
-					// do extra checks here if the thing is accessible
-					if (thing && thing->getItem()) {
-						if (tile->hasProperty(CONST_PROP_ISVERTICAL)) {
-							if (player->getPosition().x + 1 == tile->getPosition().x) {
-								thing = nullptr;
-							}
-						} else { // horizontal
-							if (player->getPosition().y + 1 == tile->getPosition().y) {
-								thing = nullptr;
-							}
-						}
-					}
-				}
 				break;
 			}
 
@@ -263,7 +259,21 @@ Thing* Game::internalGetThing(Player* player, const Position& pos, int32_t index
 				break;
 			}
 		}
-
+		
+		if (player && tile->hasFlag(TILESTATE_SUPPORTS_HANGABLE)) {
+			// do extra checks here if the thing is accessible
+			if (thing && thing->getItem()) {
+				if (tile->hasProperty(CONST_PROP_ISVERTICAL)) {
+					if (player->getPosition().x + 1 == tile->getPosition().x) {
+						thing = nullptr;
+					}
+				} else { // horizontal
+					if (player->getPosition().y + 1 == tile->getPosition().y) {
+						thing = nullptr;
+					}
+				}
+			}	
+		}
 		return thing;
 	}
 
@@ -2343,88 +2353,6 @@ void Game::playerWriteItem(uint32_t playerId, uint32_t windowTextId, const std::
 	player->setWriteItem(nullptr);
 }
 
-/*
-void Game::playerBrowseField(uint32_t playerId, const Position& pos)
-{
-	Player* player = getPlayerByID(playerId);
-	if (!player) {
-		return;
-	}
-
-	const Position& playerPos = player->getPosition();
-	if (playerPos.z != pos.z) {
-		player->sendCancelMessage(playerPos.z > pos.z ? RETURNVALUE_FIRSTGOUPSTAIRS : RETURNVALUE_FIRSTGODOWNSTAIRS);
-		return;
-	}
-
-	if (!Position::areInRange<1, 1>(playerPos, pos)) {
-		std::vector<Direction> listDir;
-		if (player->getPathTo(pos, listDir, 0, 1, true, true)) {
-			g_dispatcher.addTask(createTask(std::bind(&Game::playerAutoWalk,
-			                                this, player->getID(), std::move(listDir))));
-			SchedulerTask* task = createSchedulerTask(RANGE_BROWSE_FIELD_INTERVAL, std::bind(
-			                          &Game::playerBrowseField, this, playerId, pos
-			                      ));
-			player->setNextWalkActionTask(task);
-		} else {
-			player->sendCancelMessage(RETURNVALUE_THEREISNOWAY);
-		}
-		return;
-	}
-
-	Tile* tile = map.getTile(pos);
-	if (!tile) {
-		return;
-	}
-
-	if (!g_events->eventPlayerOnBrowseField(player, pos)) {
-		return;
-	}
-
-	Container* container;
-
-	auto it = browseFields.find(tile);
-	if (it == browseFields.end()) {
-		container = new Container(tile);
-		container->incrementReferenceCounter();
-		browseFields[tile] = container;
-		g_scheduler.addEvent(createSchedulerTask(30000, std::bind(&Game::decreaseBrowseFieldRef, this, tile->getPosition())));
-	} else {
-		container = it->second;
-	}
-
-	uint8_t dummyContainerId = 0xF - ((pos.x % 3) * 3 + (pos.y % 3));
-	Container* openContainer = player->getContainerByID(dummyContainerId);
-	if (openContainer) {
-		player->onCloseContainer(openContainer);
-		player->closeContainer(dummyContainerId);
-	} else {
-		player->addContainer(dummyContainerId, container);
-		player->sendContainer(dummyContainerId, container, false, 0);
-	}
-}*/
-
-/*void Game::playerSeekInContainer(uint32_t playerId, uint8_t containerId, uint16_t index)
-{
-	Player* player = getPlayerByID(playerId);
-	if (!player) {
-		return;
-	}
-
-	Container* container = player->getContainerByID(containerId);
-	if (!container || !container->hasPagination()) {
-		return;
-	}
-
-	if ((index % container->capacity()) != 0 || index >= container->size()) {
-		return;
-	}
-
-	player->setContainerIndex(containerId, index);
-	player->sendContainer(containerId, container, container->hasParent(), index);
-}
-*/
-
 void Game::playerUpdateHouseWindow(uint32_t playerId, uint8_t listId, uint32_t windowTextId, const std::string& text)
 {
 	Player* player = getPlayerByID(playerId);
@@ -2442,43 +2370,7 @@ void Game::playerUpdateHouseWindow(uint32_t playerId, uint8_t listId, uint32_t w
 
 	player->setEditHouse(nullptr);
 }
-/*
-void Game::playerWrapItem(uint32_t playerId, const Position& position, uint8_t stackPos, const uint16_t spriteId)
-{
-	Player* player = getPlayerByID(playerId);
-	if (!player) {
-		return;
-	}
 
-	Thing* thing = internalGetThing(player, position, stackPos, 0, STACKPOS_TOPDOWN_ITEM);
-	if (!thing) {
-		return;
-	}
-
-	Item* item = thing->getItem();
-	if (!item || item->getClientID() != spriteId || !item->hasAttribute(ITEM_ATTRIBUTE_WRAPID) || item->hasAttribute(ITEM_ATTRIBUTE_UNIQUEID)) {
-		player->sendCancelMessage(RETURNVALUE_NOTPOSSIBLE);
-		return;
-	}
-
-	if (position.x != 0xFFFF && !Position::areInRange<1, 1, 0>(position, player->getPosition())) {
-		std::vector<Direction> listDir;
-		if (player->getPathTo(position, listDir, 0, 1, true, true)) {
-			g_dispatcher.addTask(createTask(std::bind(&Game::playerAutoWalk,
-				this, player->getID(), std::move(listDir))));
-
-			SchedulerTask* task = createSchedulerTask(RANGE_WRAP_ITEM_INTERVAL, std::bind(&Game::playerWrapItem, this,
-				playerId, position, stackPos, spriteId));
-			player->setNextWalkActionTask(task);
-		} else {
-			player->sendCancelMessage(RETURNVALUE_THEREISNOWAY);
-		}
-		return;
-	}
-
-	g_events->eventPlayerOnWrapItem(player, item);
-}
-*/
 void Game::playerRequestTrade(uint32_t playerId, const Position& pos, uint8_t stackPos,
                               uint32_t tradePlayerId, uint16_t spriteId)
 {
@@ -4538,6 +4430,42 @@ void Game::checkDecay()
 	cleanup();
 }
 
+void Game::checkLight()
+{
+	g_scheduler.addEvent(createSchedulerTask(EVENT_LIGHTINTERVAL, std::bind(&Game::checkLight, this)));
+	uint8_t previousLightLevel = lightLevel;
+	updateWorldLightLevel();
+
+	if (previousLightLevel != lightLevel) {
+		LightInfo lightInfo = getWorldLightInfo();
+
+		for (const auto& it : players) {
+			it.second->sendWorldLight(lightInfo);
+		}
+	}
+}
+
+void Game::updateWorldLightLevel()
+{
+	if (getWorldTime() >= GAME_SUNRISE && getWorldTime() <= GAME_DAYTIME) {
+		lightLevel = ((GAME_DAYTIME - GAME_SUNRISE) - (GAME_DAYTIME - getWorldTime())) * float(LIGHT_CHANGE_SUNRISE) + LIGHT_NIGHT;
+	} else if (getWorldTime() >= GAME_SUNSET && getWorldTime() <= GAME_NIGHTTIME) {
+		lightLevel = LIGHT_DAY - ((getWorldTime() - GAME_SUNSET) * float(LIGHT_CHANGE_SUNSET));
+	} else if (getWorldTime() >= GAME_NIGHTTIME || getWorldTime() < GAME_SUNRISE) {
+		lightLevel = LIGHT_NIGHT;
+	} else {
+		lightLevel = LIGHT_DAY;
+	}
+}
+
+void Game::updateWorldTime()
+{
+	g_scheduler.addEvent(createSchedulerTask(EVENT_WORLDTIMEINTERVAL, std::bind(&Game::updateWorldTime, this)));
+	time_t osTime = time(nullptr);
+	tm* timeInfo = localtime(&osTime);
+	worldTime = (timeInfo->tm_sec + (timeInfo->tm_min * 60)) / 2.5f;
+}
+
 void Game::shutdown()
 {
 	std::cout << "Shutting down..." << std::flush;
@@ -4979,7 +4907,7 @@ void Game::playerCreateMarketOffer(uint32_t playerId, uint8_t type, uint16_t spr
 	}
 
 	if (g_config.getBoolean(ConfigManager::MARKET_PREMIUM) && !player->isPremium()) {
-		player->sendMarketLeave();
+		player->sendTextMessage(MESSAGE_EVENT_ADVANCE, "Only premium accounts may create offers for that object.");
 		return;
 	}
 
@@ -5003,10 +4931,10 @@ void Game::playerCreateMarketOffer(uint32_t playerId, uint8_t type, uint16_t spr
 	}
 
 	uint64_t fee = (price / 100.) * amount;
-	if (fee < 20) {
-		fee = 20;
-	} else if (fee > 1000) {
-		fee = 1000;
+	if (fee < MIN_MARKET_FEE) {
+		fee = MIN_MARKET_FEE;
+	} else if (fee > MAX_MARKET_FEE) {
+		fee = MAX_MARKET_FEE;
 	}
 
 	if (type == MARKETACTION_SELL) {
@@ -5140,6 +5068,7 @@ void Game::playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16
 
 	MarketOfferEx offer = IOMarket::getOfferByCounter(timestamp, counter);
 	if (offer.id == 0) {
+		player->sendTextMessage(MESSAGE_EVENT_ADVANCE, "You cannot accept your own offer.");
 		return;
 	}
 
@@ -5314,14 +5243,23 @@ std::forward_list<Item*> Game::getMarketItemList(uint16_t wareId, uint16_t suffi
 	uint16_t count = 0;
 	
 	std::list<Container*> containers{player.getInbox()};
+	
+	for (const auto& chest : player.depotChests) {
+		std::shared_ptr<DepotChest> depotChest = chest.second;
+		Container* container = dynamic_cast<Container*>(depotChest.get());
+		if (!container->empty()) {
+			containers.push_front(container);
+		}
+	}
+	
 	do {
 		Container* container = containers.front();
 		containers.pop_front();
 
 		for (Item* item : container->getItemList()) {
-			Container* c = item->getContainer();
-			if (c && !c->empty()) {
-				containers.push_back(c);
+			Container* containerItem = item->getContainer();
+			if (containerItem && !containerItem->empty()) {
+				containers.push_back(containerItem);
 				continue;
 			}
 
@@ -5330,7 +5268,7 @@ std::forward_list<Item*> Game::getMarketItemList(uint16_t wareId, uint16_t suffi
 				continue;
 			}
 
-			if (c && (!itemType.isContainer() || c->capacity() != itemType.maxItems)) {
+			if (containerItem && (!itemType.isContainer() || containerItem->capacity() != itemType.maxItems)) {
 				continue;
 			}
 
@@ -5346,7 +5284,7 @@ std::forward_list<Item*> Game::getMarketItemList(uint16_t wareId, uint16_t suffi
 			}
 		}
 	} while (!containers.empty());
-	return std::forward_list<Item*>();
+	return {};
 }
 
 void Game::parsePlayerNetworkMessage(uint32_t playerId, uint8_t recvByte, NetworkMessage* msg)

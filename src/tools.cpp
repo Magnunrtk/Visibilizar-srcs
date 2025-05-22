@@ -24,33 +24,6 @@
 
 extern ConfigManager g_config;
 
-std::string getVocationShortName(uint8_t vocationId)
-{
-	std::stringstream ss;
-	switch (vocationId) {
-		case 1:
-		case 5:
-			ss << "MS";
-			break;
-		case 2:
-		case 6:
-			ss << "ED";
-			break;
-		case 3:
-		case 7:
-			ss << "RP";
-			break;
-		case 4:
-		case 8:
-			ss << "EK";
-			break;
-		default:
-			ss << "-";
-			break;
-	}
-	return ss.str();
-}
-
 void printXMLError(const std::string& where, const std::string& fileName, const pugi::xml_parse_result& result)
 {
 	std::cout << '[' << where << "] Failed to load " << fileName << ": " << result.description() << std::endl;
@@ -1408,4 +1381,31 @@ const std::vector<Direction>& getShuffleDirections()
 	static std::vector<Direction> dirList{DIRECTION_NORTH, DIRECTION_WEST, DIRECTION_EAST, DIRECTION_SOUTH};
 	std::shuffle(dirList.begin(), dirList.end(), getRandomGenerator());
 	return dirList;
+}
+
+std::string getVocationShortName(uint8_t vocationId)
+{
+	std::stringstream ss;
+	switch (vocationId) {
+		case 1:
+		case 5:
+			ss << "MS";
+			break;
+		case 2:
+		case 6:
+			ss << "ED";
+			break;
+		case 3:
+		case 7:
+			ss << "RP";
+			break;
+		case 4:
+		case 8:
+			ss << "EK";
+			break;
+		default:
+			ss << "-";
+			break;
+	}
+	return ss.str();
 }

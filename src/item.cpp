@@ -1095,11 +1095,17 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 					s << ", Hit%" << std::showpos << static_cast<int16_t>(hitChance) << std::noshowpos;
 				}
 			} else {
-				s << " (Atk:" << attack << ", Def:" << defense;
+				s << " (Atk:" << attack;
+				
+				if (defense != 0) {
+					s << ", Def:" << std::showpos << defense << std::noshowpos;
+				}
 			}
 
 			begin = false;
-		} else if (it.weaponType != WEAPON_AMMO) {
+		}
+		else if (it.weaponType == WEAPON_AMMO) {
+
 			int32_t attack = item ? item->getAttack() : it.attack;
 			if (attack != 0) {
 				begin = false;
@@ -1117,7 +1123,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 				}
 
 				s << "Max Hit%+" << maxHitChance;
-			}	
+			}
 		} else {
 			int32_t attack, defense, extraDefense;
 			if (item) {
@@ -1165,7 +1171,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 				}
 			}
 		}
-
+		
 		if (it.abilities) {
 			for (uint8_t i = SKILL_FIRST; i <= SKILL_LAST; i++) {
 				if (!it.abilities->skills[i]) {
@@ -1446,7 +1452,8 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 				s << "boost all " << std::showpos << show << std::noshowpos << '%';
 			}
 
-			if (it.abilities->speed) {
+
+			if (it.abilities->speed) {if (it.abilities->speed) {
 				if (begin) {
 					begin = false;
 					s << " (";
@@ -1456,8 +1463,8 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 
 				s << "speed " << std::showpos << (it.abilities->speed >> 1) << std::noshowpos;
 			}
-			
-			// Show maxHitPoints on item
+		}
+				// Show maxHitPoints on item
             if (it.abilities->stats[STAT_MAXHITPOINTS]) {
                 if (begin) {
                     begin = false;
@@ -1537,7 +1544,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 
 		if (!begin) {
 			s << ')';
-		}				
+		}
 	} else if (it.armor != 0 || (item && item->getArmor() != 0) || it.showAttributes) {
 		bool begin = true;
 
@@ -1700,7 +1707,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 						s << ", ";
 					}
 
-					s << getCombatName(indexToCombatType(i)) << ' ' << modifier << std::noshowpos << '%';
+					s << getCombatName(indexToCombatType(i)) << ' ' << std::showpos << modifier << std::noshowpos << '%';
 				}
 			} else {
 				if (begin) {
@@ -1710,7 +1717,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 					s << ", ";
 				}
 
-				s << "reflect all " << show << std::noshowpos << '%';
+				s << "reflect all " << std::showpos << show << std::noshowpos << '%';
 			}
 
 			modifier = item ? item->getReflect(COMBAT_NONE).chance : it.abilities->reflect[0].chance;
@@ -1729,7 +1736,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 				bool tmp = true;
 
 				for (size_t i = 0; i < COMBAT_COUNT; ++i) {
-					modifier = item ? item->getReflect(indexToCombatType(i)).chance : it.abilities->reflect[i].chance;
+					modifier = item ? item->getReflect(indexToCombatType(i)).percent : it.abilities->reflect[i].percent;
 					if (modifier == 0) {
 						continue;
 					}
@@ -1749,7 +1756,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 						s << ", ";
 					}
 
-					s << getCombatName(indexToCombatType(i)) << " chance " << modifier << std::noshowpos << '%';
+					s << getCombatName(indexToCombatType(i)) << " chance " << std::showpos << modifier << std::noshowpos << '%';
 				}
 			} else {
 				if (begin) {
@@ -1759,7 +1766,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 					s << ", ";
 				}
 
-				s << "reflect chance all " << show << std::noshowpos << '%';
+				s << "reflect chance all " << std::showpos << show << std::noshowpos << '%';
 			}
 
 			modifier = item ? item->getBoostPercent(COMBAT_NONE) : it.abilities->boostPercent[0];
@@ -1903,11 +1910,12 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 		if (!begin) {
 			s << ')';
 		}
+				
 	} else if (it.isContainer() || (item && item->getContainer())) {
 		uint32_t volume = 0;
 		if (!item || !item->hasAttribute(ITEM_ATTRIBUTE_UNIQUEID)) {
 			if (it.isContainer()) {
-				volume = it.maxItems;
+				volume = item->getName() == "quiver" ? 30 : it.maxItems;
 			} else {
 				volume = item->getContainer()->capacity();
 			}
@@ -2077,8 +2085,8 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 
 		s << '.';
 	}
-	
-	if (lookDistance <= 7) {
+
+	if (lookDistance <= 1) {
 		if (item) {
 			const uint32_t weight = item->getWeight();
 			if (weight != 0 && it.pickupable) {
@@ -2093,10 +2101,10 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 		const std::string& specialDescription = item->getSpecialDescription();
 		if (!specialDescription.empty()) {
 			s << '\n' << specialDescription;
-		} else if (lookDistance <= 7 && !it.description.empty()) {
+		} else if (lookDistance <= 1 && !it.description.empty()) {
 			s << '\n' << it.description;
 		}
-	} else if (lookDistance <= 7 && !it.description.empty()) {
+	} else if (lookDistance <= 1 && !it.description.empty()) {
 		s << '\n' << it.description;
 	}
 

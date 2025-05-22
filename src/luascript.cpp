@@ -1044,6 +1044,15 @@ void LuaScriptInterface::registerFunctions()
 
 	//getDepotId(uid)
 	lua_register(luaState, "getDepotId", LuaScriptInterface::luaGetDepotId);
+	
+	//getWorldTime()
+	lua_register(luaState, "getWorldTime", LuaScriptInterface::luaGetWorldTime);
+
+	//getWorldLight()
+	lua_register(luaState, "getWorldLight", LuaScriptInterface::luaGetWorldLight);
+
+	//setWorldLight(level, color)
+	lua_register(luaState, "setWorldLight", LuaScriptInterface::luaSetWorldLight);
 
 	//getWorldUpTime()
 	lua_register(luaState, "getWorldUpTime", LuaScriptInterface::luaGetWorldUpTime);
@@ -2078,65 +2087,66 @@ void LuaScriptInterface::registerFunctions()
 	// configKeys
 	registerTable("configKeys");
 
-	registerEnumIn("configKeys", ConfigManager::ALLOW_CHANGEOUTFIT)
-	registerEnumIn("configKeys", ConfigManager::ONE_PLAYER_ON_ACCOUNT)
-	registerEnumIn("configKeys", ConfigManager::AIMBOT_HOTKEY_ENABLED)
-	registerEnumIn("configKeys", ConfigManager::REMOVE_RUNE_CHARGES)
-	registerEnumIn("configKeys", ConfigManager::REMOVE_WEAPON_AMMO)
-	registerEnumIn("configKeys", ConfigManager::REMOVE_WEAPON_CHARGES)
-	registerEnumIn("configKeys", ConfigManager::REMOVE_POTION_CHARGES)
-	registerEnumIn("configKeys", ConfigManager::PZLOCK_SKULL_ATTACKER)
-	registerEnumIn("configKeys", ConfigManager::EXPERIENCE_FROM_PLAYERS)
-	registerEnumIn("configKeys", ConfigManager::FREE_PREMIUM)
-	registerEnumIn("configKeys", ConfigManager::REPLACE_KICK_ON_LOGIN)
-	registerEnumIn("configKeys", ConfigManager::ALLOW_CLONES)
-	registerEnumIn("configKeys", ConfigManager::BIND_ONLY_GLOBAL_ADDRESS)
-	registerEnumIn("configKeys", ConfigManager::OPTIMIZE_DATABASE)
-	registerEnumIn("configKeys", ConfigManager::MARKET_PREMIUM)
-	registerEnumIn("configKeys", ConfigManager::EMOTE_SPELLS)
-	registerEnumIn("configKeys", ConfigManager::STAMINA_SYSTEM)
-	registerEnumIn("configKeys", ConfigManager::WARN_UNSAFE_SCRIPTS)
-	registerEnumIn("configKeys", ConfigManager::CONVERT_UNSAFE_SCRIPTS)
-	registerEnumIn("configKeys", ConfigManager::CLASSIC_EQUIPMENT_SLOTS)
-	registerEnumIn("configKeys", ConfigManager::CLASSIC_ATTACK_SPEED)
-	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_NOTIFY_MESSAGE)
-	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_NOTIFY_DURATION)
-	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_CLEAN_MAP)
-	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_CLOSE)
-	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_SHUTDOWN)
-	registerEnumIn("configKeys", ConfigManager::ONLINE_OFFLINE_CHARLIST)
-	registerEnumIn("configKeys", ConfigManager::LUA_ITEM_DESC)
+	registerEnumIn("configKeys", ConfigManager::ALLOW_CHANGEOUTFIT);
+	registerEnumIn("configKeys", ConfigManager::ONE_PLAYER_ON_ACCOUNT);
+	registerEnumIn("configKeys", ConfigManager::AIMBOT_HOTKEY_ENABLED);
+	registerEnumIn("configKeys", ConfigManager::REMOVE_RUNE_CHARGES);
+	registerEnumIn("configKeys", ConfigManager::REMOVE_WEAPON_AMMO);
+	registerEnumIn("configKeys", ConfigManager::REMOVE_WEAPON_CHARGES);
+	registerEnumIn("configKeys", ConfigManager::REMOVE_POTION_CHARGES);
+	registerEnumIn("configKeys", ConfigManager::PZLOCK_SKULL_ATTACKER);
+	registerEnumIn("configKeys", ConfigManager::EXPERIENCE_FROM_PLAYERS);
+	registerEnumIn("configKeys", ConfigManager::FREE_PREMIUM);
+	registerEnumIn("configKeys", ConfigManager::REPLACE_KICK_ON_LOGIN);
+	registerEnumIn("configKeys", ConfigManager::ALLOW_CLONES);
+	registerEnumIn("configKeys", ConfigManager::BIND_ONLY_GLOBAL_ADDRESS);
+	registerEnumIn("configKeys", ConfigManager::OPTIMIZE_DATABASE);
+	registerEnumIn("configKeys", ConfigManager::MARKET_PREMIUM);
+	registerEnumIn("configKeys", ConfigManager::EMOTE_SPELLS);
+	registerEnumIn("configKeys", ConfigManager::STAMINA_SYSTEM);
+	registerEnumIn("configKeys", ConfigManager::WARN_UNSAFE_SCRIPTS);
+	registerEnumIn("configKeys", ConfigManager::CONVERT_UNSAFE_SCRIPTS);
+	registerEnumIn("configKeys", ConfigManager::CLASSIC_EQUIPMENT_SLOTS);
+	registerEnumIn("configKeys", ConfigManager::CLASSIC_ATTACK_SPEED);
+	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_NOTIFY_MESSAGE);
+	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_NOTIFY_DURATION);
+	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_CLEAN_MAP);
+	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_CLOSE);
+	registerEnumIn("configKeys", ConfigManager::SERVER_SAVE_SHUTDOWN);
+	registerEnumIn("configKeys", ConfigManager::ONLINE_OFFLINE_CHARLIST);
+	registerEnumIn("configKeys", ConfigManager::LUA_ITEM_DESC);
 
-	registerEnumIn("configKeys", ConfigManager::MAP_NAME)
-	registerEnumIn("configKeys", ConfigManager::HOUSE_RENT_PERIOD)
-	registerEnumIn("configKeys", ConfigManager::SERVER_NAME)
-	registerEnumIn("configKeys", ConfigManager::OWNER_NAME)
-	registerEnumIn("configKeys", ConfigManager::OWNER_EMAIL)
-	registerEnumIn("configKeys", ConfigManager::URL)
-	registerEnumIn("configKeys", ConfigManager::LOCATION)
-	registerEnumIn("configKeys", ConfigManager::IP)
-	registerEnumIn("configKeys", ConfigManager::MOTD)
-	registerEnumIn("configKeys", ConfigManager::WORLD_TYPE)
-	registerEnumIn("configKeys", ConfigManager::MYSQL_HOST)
-	registerEnumIn("configKeys", ConfigManager::MYSQL_USER)
-	registerEnumIn("configKeys", ConfigManager::MYSQL_PASS)
-	registerEnumIn("configKeys", ConfigManager::MYSQL_DB)
-	registerEnumIn("configKeys", ConfigManager::MYSQL_SOCK)
-	registerEnumIn("configKeys", ConfigManager::DEFAULT_PRIORITY)
-	registerEnumIn("configKeys", ConfigManager::MAP_AUTHOR)
+	registerEnumIn("configKeys", ConfigManager::MAP_NAME);
+	registerEnumIn("configKeys", ConfigManager::HOUSE_RENT_PERIOD);
+	registerEnumIn("configKeys", ConfigManager::SERVER_NAME);
+	registerEnumIn("configKeys", ConfigManager::OWNER_NAME);
+	registerEnumIn("configKeys", ConfigManager::OWNER_EMAIL);
+	registerEnumIn("configKeys", ConfigManager::URL);
+	registerEnumIn("configKeys", ConfigManager::LOCATION);
+	registerEnumIn("configKeys", ConfigManager::IP);
+	registerEnumIn("configKeys", ConfigManager::MOTD);
+	registerEnumIn("configKeys", ConfigManager::WORLD_TYPE);
+	registerEnumIn("configKeys", ConfigManager::MYSQL_HOST);
+	registerEnumIn("configKeys", ConfigManager::MYSQL_USER);
+	registerEnumIn("configKeys", ConfigManager::MYSQL_PASS);
+	registerEnumIn("configKeys", ConfigManager::MYSQL_DB);
+	registerEnumIn("configKeys", ConfigManager::MYSQL_SOCK);
+	registerEnumIn("configKeys", ConfigManager::DEFAULT_PRIORITY);
+	registerEnumIn("configKeys", ConfigManager::MAP_AUTHOR);
 
-	registerEnumIn("configKeys", ConfigManager::SQL_PORT)
-	registerEnumIn("configKeys", ConfigManager::MAX_PLAYERS)
-	registerEnumIn("configKeys", ConfigManager::PZ_LOCKED)
-	registerEnumIn("configKeys", ConfigManager::DEFAULT_DESPAWNRANGE)
-	registerEnumIn("configKeys", ConfigManager::DEFAULT_DESPAWNRADIUS)
-	registerEnumIn("configKeys", ConfigManager::DEFAULT_WALKTOSPAWNRADIUS)
-	registerEnumIn("configKeys", ConfigManager::REMOVE_ON_DESPAWN)
-	registerEnumIn("configKeys", ConfigManager::RATE_EXPERIENCE)
-	registerEnumIn("configKeys", ConfigManager::RATE_SKILL)
-	registerEnumIn("configKeys", ConfigManager::RATE_LOOT)
-	registerEnumIn("configKeys", ConfigManager::RATE_MAGIC)
-	registerEnumIn("configKeys", ConfigManager::HOUSE_PRICE)
+	registerEnumIn("configKeys", ConfigManager::SQL_PORT);
+	registerEnumIn("configKeys", ConfigManager::MAX_PLAYERS);
+	registerEnumIn("configKeys", ConfigManager::PZ_LOCKED);
+	registerEnumIn("configKeys", ConfigManager::DEFAULT_DESPAWNRANGE);
+	registerEnumIn("configKeys", ConfigManager::DEFAULT_DESPAWNRADIUS);
+	registerEnumIn("configKeys", ConfigManager::DEFAULT_WALKTOSPAWNRADIUS);
+	registerEnumIn("configKeys", ConfigManager::REMOVE_ON_DESPAWN);
+	registerEnumIn("configKeys", ConfigManager::RATE_EXPERIENCE);
+	registerEnumIn("configKeys", ConfigManager::RATE_SKILL);
+	registerEnumIn("configKeys", ConfigManager::RATE_LOOT);
+	registerEnumIn("configKeys", ConfigManager::RATE_MAGIC);
+	registerEnumIn("configKeys", ConfigManager::HOUSE_LEVEL);
+	registerEnumIn("configKeys", ConfigManager::HOUSE_PRICE);
 	
 	// Frags System
 	registerEnumIn("configKeys", ConfigManager::RED_DAILY_LIMIT);
@@ -2148,20 +2158,20 @@ void LuaScriptInterface::registerFunctions()
 	registerEnumIn("configKeys", ConfigManager::BLACK_MONTHLY_LIMIT);
 	registerEnumIn("configKeys", ConfigManager::BLACK_SKULL_LENGTH);
 	
-	registerEnumIn("configKeys", ConfigManager::MAX_MESSAGEBUFFER)
-	registerEnumIn("configKeys", ConfigManager::PROTECTION_LEVEL)
-	registerEnumIn("configKeys", ConfigManager::DEATH_LOSE_PERCENT)
-	registerEnumIn("configKeys", ConfigManager::STATUSQUERY_TIMEOUT)
-	registerEnumIn("configKeys", ConfigManager::WHITE_SKULL_TIME)
-	registerEnumIn("configKeys", ConfigManager::GAME_PORT)
-	registerEnumIn("configKeys", ConfigManager::LOGIN_PORT)
-	registerEnumIn("configKeys", ConfigManager::STATUS_PORT)
-	registerEnumIn("configKeys", ConfigManager::STAIRHOP_DELAY)
-	registerEnumIn("configKeys", ConfigManager::MARKET_OFFER_DURATION)
-	registerEnumIn("configKeys", ConfigManager::CHECK_EXPIRED_MARKET_OFFERS_EACH_MINUTES)
-	registerEnumIn("configKeys", ConfigManager::MAX_MARKET_OFFERS_AT_A_TIME_PER_PLAYER)
-	registerEnumIn("configKeys", ConfigManager::EXP_FROM_PLAYERS_LEVEL_RANGE)
-	registerEnumIn("configKeys", ConfigManager::MAX_PACKETS_PER_SECOND)
+	registerEnumIn("configKeys", ConfigManager::MAX_MESSAGEBUFFER);
+	registerEnumIn("configKeys", ConfigManager::PROTECTION_LEVEL);
+	registerEnumIn("configKeys", ConfigManager::DEATH_LOSE_PERCENT);
+	registerEnumIn("configKeys", ConfigManager::STATUSQUERY_TIMEOUT);
+	registerEnumIn("configKeys", ConfigManager::WHITE_SKULL_TIME);
+	registerEnumIn("configKeys", ConfigManager::GAME_PORT);
+	registerEnumIn("configKeys", ConfigManager::LOGIN_PORT);
+	registerEnumIn("configKeys", ConfigManager::STATUS_PORT);
+	registerEnumIn("configKeys", ConfigManager::STAIRHOP_DELAY);
+	registerEnumIn("configKeys", ConfigManager::MARKET_OFFER_DURATION);
+	registerEnumIn("configKeys", ConfigManager::CHECK_EXPIRED_MARKET_OFFERS_EACH_MINUTES);
+	registerEnumIn("configKeys", ConfigManager::MAX_MARKET_OFFERS_AT_A_TIME_PER_PLAYER);
+	registerEnumIn("configKeys", ConfigManager::EXP_FROM_PLAYERS_LEVEL_RANGE);
+	registerEnumIn("configKeys", ConfigManager::MAX_PACKETS_PER_SECOND);
 	registerEnumIn("configKeys", ConfigManager::SORT_LOOT_BY_CHANCE);
 	registerEnumIn("configKeys", ConfigManager::MAX_ALLOWED_ON_A_DUMMY);
 	registerEnumIn("configKeys", ConfigManager::NPCS_USING_BANK_MONEY);
@@ -2755,6 +2765,11 @@ void LuaScriptInterface::registerFunctions()
 	registerMethod("Player", "getIdleTime", LuaScriptInterface::luaPlayerGetIdleTime);
 	registerMethod("Player", "setIdleTime", LuaScriptInterface::luaPlayerSetIdleTime);
 	registerMethod("Player", "resetIdleTime", LuaScriptInterface::luaPlayerResetIdleTime);
+	
+	registerMethod("Player", "isNearDepotBox", LuaScriptInterface::luaPlayerIsNearDepotBox);
+	
+	registerMethod("Player", "openMarket", LuaScriptInterface::luaPlayerOpenMarket);
+	
 	
 	// Monster
 	registerClass("Monster", "Creature", LuaScriptInterface::luaMonsterCreate);
@@ -3558,6 +3573,39 @@ int LuaScriptInterface::luaDebugPrint(lua_State* L)
 	//debugPrint(text)
 	reportErrorFunc(L, getString(L, -1));
 	return 0;
+}
+
+int LuaScriptInterface::luaGetWorldTime(lua_State* L)
+{
+	//getWorldTime()
+	int16_t time = g_game.getWorldTime();
+	lua_pushnumber(L, time);
+	return 1;
+}
+
+int LuaScriptInterface::luaGetWorldLight(lua_State* L)
+{
+	//getWorldLight()
+	LightInfo lightInfo = g_game.getWorldLightInfo();
+	lua_pushnumber(L, lightInfo.level);
+	lua_pushnumber(L, lightInfo.color);
+	return 2;
+}
+
+int LuaScriptInterface::luaSetWorldLight(lua_State* L)
+{
+	//setWorldLight(level, color)
+	if (g_config.getBoolean(ConfigManager::DEFAULT_WORLD_LIGHT)) {
+		pushBoolean(L, false);
+		return 1;
+	}
+
+	LightInfo lightInfo;
+	lightInfo.level = getNumber<uint8_t>(L, 1);
+	lightInfo.color = getNumber<uint8_t>(L, 2);
+	g_game.setWorldLightInfo(lightInfo);
+	pushBoolean(L, true);
+	return 1;
 }
 
 int LuaScriptInterface::luaGetWorldUpTime(lua_State* L)
@@ -10215,10 +10263,13 @@ int LuaScriptInterface::luaPlayerShowTextDialog(lua_State* L)
 	}
 
 	Item* item;
+	bool fixMemoryLeak = false;
 	if (isNumber(L, 2)) {
 		item = Item::CreateItem(getNumber<uint16_t>(L, 2));
+			fixMemoryLeak = true;
 	} else if (isString(L, 2)) {
 		item = Item::CreateItem(Item::items.getItemIdByName(getString(L, 2)));
+		fixMemoryLeak = true;
 	} else if (isUserdata(L, 2)) {
 		if (getUserdataType(L, 2) != LuaData_Item) {
 			pushBoolean(L, false);
@@ -10250,6 +10301,12 @@ int LuaScriptInterface::luaPlayerShowTextDialog(lua_State* L)
 	player->writeItem = item;
 	player->maxWriteLen = length;
 	player->sendTextWindow(item, length, canWrite);
+	if (fixMemoryLeak) {
+		// Player::setWriteItem will add reference so we'll end up with 2 references
+		// and since we'll have 2 references the memory allocated will never be destroyed
+		// to avoid that we decrement one reference here
+		item->decrementReferenceCounter();
+	}
 	pushBoolean(L, true);
 	return 1;
 }
@@ -11151,6 +11208,33 @@ int LuaScriptInterface::luaPlayerResetIdleTime(lua_State* L)
 	}
 
 	player->resetIdleTime();
+	pushBoolean(L, true);
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerIsNearDepotBox(lua_State* L)
+{
+	// player:isNearDepotBox()
+	const Player* const player = getUserdata<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	pushBoolean(L, player->isNearDepotBox());
+	return 1;
+}
+
+int LuaScriptInterface::luaPlayerOpenMarket(lua_State* L)
+{
+	// player:openMarket()
+	Player* player = getUserdata<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	player->sendMarketEnter();
 	pushBoolean(L, true);
 	return 1;
 }

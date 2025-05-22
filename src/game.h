@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef FS_GAME_H_3EC96D67DD024E6093B3BAC29B7A6D7F
-#define FS_GAME_H_3EC96D67DD024E6093B3BAC29B7A6D7F
+#ifndef FS_GAME_H
+#define FS_GAME_H
 
 #include "account.h"
 #include "combat.h"
@@ -65,8 +65,8 @@ static constexpr int32_t PLAYER_NAME_LENGTH = 25;
 
 static constexpr int32_t EVENT_LIGHTINTERVAL = 10000;
 static constexpr int32_t EVENT_WORLDTIMEINTERVAL = 2500;
-static constexpr int32_t EVENT_DECAYINTERVAL = 2000;
-static constexpr int32_t EVENT_DECAY_BUCKETS = 10;
+static constexpr int32_t EVENT_DECAYINTERVAL = 250;
+static constexpr int32_t EVENT_DECAY_BUCKETS = 4;
 
 static constexpr int32_t MOVE_CREATURE_INTERVAL = 1000;
 static constexpr int32_t RANGE_MOVE_CREATURE_INTERVAL = 1500;
@@ -78,6 +78,8 @@ static constexpr int32_t RANGE_ROTATE_ITEM_INTERVAL = 400;
 static constexpr int32_t RANGE_BROWSE_FIELD_INTERVAL = 400;
 static constexpr int32_t RANGE_WRAP_ITEM_INTERVAL = 400;
 static constexpr int32_t RANGE_REQUEST_TRADE_INTERVAL = 400;
+
+static constexpr uint32_t MAX_STACKPOS = 10;
 
 /**
   * Main Game class.
@@ -237,6 +239,18 @@ class Game
 		}
 		
 		uint8_t getSpawnRate() const;
+		
+		LightInfo getWorldLightInfo() const {
+			return {lightLevel, lightColor};
+		}
+		void setWorldLightInfo(LightInfo lightInfo) {
+			lightLevel = lightInfo.level;
+			lightColor = lightInfo.color;
+			for (const auto& it : players) {
+				it.second->sendWorldLight(lightInfo);
+			}
+		}
+		void updateWorldLightLevel();
 		
 		ReturnValue internalMoveCreature(Creature* creature, Direction direction, uint32_t flags = 0);
 		ReturnValue internalMoveCreature(Creature& creature, Tile& toTile, uint32_t flags = 0);
@@ -423,7 +437,7 @@ class Game
 
 		GameState_t getGameState() const;
 		void setGameState(GameState_t newState);
-		void saveGameState();
+		void saveGameState(bool crash = false);
 
 		//Events
 		void checkCreatureWalk(uint32_t creatureId);
@@ -455,6 +469,9 @@ class Game
 		bool saveAccountStorageValues() const;
 
 		void startDecay(Item* item);
+		
+		int16_t getWorldTime() { return worldTime; }
+		void updateWorldTime();
 
 		void loadMotdNum();
 		void saveMotdNum() const;
@@ -550,6 +567,22 @@ class Game
 		std::unordered_set<Tile*> tilesToClean;
 		
 		ModalWindow offlineTrainingWindow{ std::numeric_limits<uint32_t>::max(), "Choose a Skill", "Please choose a skill:" };
+		
+		static constexpr uint8_t LIGHT_DAY = 250;
+		static constexpr uint8_t LIGHT_NIGHT = 40;
+		// 1h realtime   = 1day worldtime
+		// 2.5s realtime = 1min worldtime
+		// worldTime is calculated in minutes
+		static constexpr int16_t GAME_SUNRISE = 360;
+		static constexpr int16_t GAME_DAYTIME = 480;
+		static constexpr int16_t GAME_SUNSET = 1080;
+		static constexpr int16_t GAME_NIGHTTIME = 1200;
+		static constexpr float LIGHT_CHANGE_SUNRISE = static_cast<int>(float(float(LIGHT_DAY - LIGHT_NIGHT) / float(GAME_DAYTIME - GAME_SUNRISE)) * 100) / 100.0f;
+		static constexpr float LIGHT_CHANGE_SUNSET = static_cast<int>(float(float(LIGHT_DAY - LIGHT_NIGHT) / float(GAME_NIGHTTIME - GAME_SUNSET)) * 100) / 100.0f;
+
+		uint8_t lightLevel = LIGHT_DAY;
+		uint8_t lightColor = 215;
+		int16_t worldTime = 0;
 		
 		GameState_t gameState = GAME_STATE_NORMAL;
 		WorldType_t worldType = WORLD_TYPE_PVP;

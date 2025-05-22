@@ -17,8 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef FS_LUASCRIPT_H_5344B2BC907E46E3943EA78574A212D8
-#define FS_LUASCRIPT_H_5344B2BC907E46E3943EA78574A212D8
+#ifndef FS_LUASCRIPT_H
+#define FS_LUASCRIPT_H
 
 #if __has_include("luajit/lua.hpp")
 #include <luajit/lua.hpp>
@@ -468,7 +468,10 @@ class LuaScriptInterface
 		static int luaGetDepotId(lua_State* L);
 
 		//get world info
+		static int luaGetWorldTime(lua_State* L);
 		static int luaGetWorldUpTime(lua_State* L);
+		static int luaGetWorldLight(lua_State* L);
+		static int luaSetWorldLight(lua_State* L);
 
 		//get subtype name
 		static int luaGetSubTypeName(lua_State* L);
@@ -1078,6 +1081,10 @@ class LuaScriptInterface
 		static int luaPlayerGetIdleTime(lua_State* L);
 		static int luaPlayerSetIdleTime(lua_State* L);
 		static int luaPlayerResetIdleTime(lua_State* L);
+		
+		static int luaPlayerIsNearDepotBox(lua_State* L);
+		
+		static int luaPlayerOpenMarket(lua_State* L);
 		
 		// Monster
 		static int luaMonsterCreate(lua_State* L);

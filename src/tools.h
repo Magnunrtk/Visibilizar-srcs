@@ -17,16 +17,14 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef FS_TOOLS_H_5F9A9742DA194628830AA1C64909AE43
-#define FS_TOOLS_H_5F9A9742DA194628830AA1C64909AE43
+#ifndef FS_TOOLS_H
+#define FS_TOOLS_H
 
 #include <random>
 
 #include "position.h"
 #include "const.h"
 #include "enums.h"
-
-std::string getVocationShortName(uint8_t vocationId);
 
 void printXMLError(const std::string& where, const std::string& fileName, const pugi::xml_parse_result& result);
 
@@ -100,6 +98,8 @@ int64_t OTSYS_TIME();
 SpellGroup_t stringToSpellGroup(const std::string& value);
 
 const std::vector<Direction>& getShuffleDirections();
+
+std::string getVocationShortName(uint8_t vocationId);
 
 template <typename E>
 auto format_as(E e)
