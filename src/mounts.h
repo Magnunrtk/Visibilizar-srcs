@@ -22,13 +22,13 @@
 
 struct Mount
 {
-	Mount(uint8_t id, uint16_t clientId, std::string name, int32_t speed, bool premium) :
+	Mount(uint16_t id, uint16_t clientId, std::string name, int32_t speed, bool premium) :
 		name(std::move(name)), speed(speed), clientId(clientId), id(id), premium(premium) {}
 
 	std::string name;
 	int32_t speed;
 	uint16_t clientId;
-	uint8_t id;
+	uint16_t id;
 	bool premium;
 };
 
@@ -37,7 +37,7 @@ class Mounts
 	public:
 		bool reload();
 		bool loadFromXml();
-		Mount* getMountByID(uint8_t id);
+		Mount* getMountByID(uint16_t id);
 		Mount* getMountByName(const std::string& name);
 		Mount* getMountByClientID(uint16_t clientId);
 

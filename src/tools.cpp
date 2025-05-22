@@ -342,23 +342,13 @@ int32_t uniform_random(int32_t minNumber, int32_t maxNumber)
 int32_t normal_random(int32_t minNumber, int32_t maxNumber)
 {
 	static std::normal_distribution<float> normalRand(0.5f, 0.25f);
-	if (minNumber == maxNumber) {
-		return minNumber;
-	} else if (minNumber > maxNumber) {
-		std::swap(minNumber, maxNumber);
-	}
+	float v;
+	do {
+		v = normalRand(getRandomGenerator());
+	} while (v < 0.0 || v > 1.0);
 
-	int32_t increment;
-	const int32_t diff = maxNumber - minNumber;
-	const float v = normalRand(getRandomGenerator());
-	if (v < 0.0) {
-		increment = diff / 2;
-	} else if (v > 1.0) {
-		increment = (diff + 1) / 2;
-	} else {
-		increment = round(v * diff);
-	}
-	return minNumber + increment;
+	auto&& [a, b] = std::minmax(minNumber, maxNumber);
+	return a + std::lround(v * (b - a));
 }
 
 bool boolean_random(double probability/* = 0.5*/)
@@ -666,19 +656,22 @@ MagicEffectNames magicEffectNames = {
 	{"fatal", CONST_ME_FATAL},
 	{"dodge", CONST_ME_DODGE},
 	{"hourglass", CONST_ME_HOURGLASS},
+	{"dazzling", CONST_ME_DAZZLING},
 	{"ferumbras1", CONST_ME_FERUMBRAS_1},
 	{"gazharagoth", CONST_ME_GAZHARAGOTH},
 	{"madmage", CONST_ME_MAD_MAGE},
 	{"horestis", CONST_ME_HORESTIS},
 	{"devovorga", CONST_ME_DEVOVORGA},
 	{"ferumbras2", CONST_ME_FERUMBRAS_2},
-	{"entincesmoke", CONST_ME_ENTINCE_SMOKE},
-	{"smoke2", CONST_ME_SMOKE_2},
-	{"tearsacred", CONST_ME_TEAR_SACRED},
-	{"meteorexplosion", CONST_ME_METEOR_EXPLOSION},
-	{"entinceholy", CONST_ME_ENTINCE_HOLY},
-	{"holymark", CONST_ME_HOLY_MARK},
-	{"waterremains", CONST_ME_WATER_REMAINS},
+	{"whitesmoke", CONST_ME_WHITE_SMOKE},
+	{"whitesmokes", CONST_ME_WHITE_SMOKES},
+	{"waterdrop", CONST_ME_WATER_DROP},
+	{"avatarappear", CONST_ME_AVATAR_APPEAR},
+	{"divinegrenade", CONST_ME_DIVINE_GRENADE},
+	{"divineempowerment", CONST_ME_DIVINE_EMPOWERMENT},
+	{"waterfloatingthrash", CONST_ME_WATER_FLOATING_THRASH},
+	{"agony", CONST_ME_AGONY},
+	{"loothighlight", CONST_ME_LOOT_HIGHLIGHT},
 };
 
 ShootTypeNames shootTypeNames = {
@@ -1136,8 +1129,6 @@ itemAttrTypes stringToItemAttribute(const std::string& str)
 		return ITEM_ATTRIBUTE_CLASSIFICATION;
 	} else if (str == "tier") {
 		return ITEM_ATTRIBUTE_TIER;
-	} else if (str == "imbuementslots") {
-		return ITEM_ATTRIBUTE_IMBUEMENTSLOTS;
 	}
 	return ITEM_ATTRIBUTE_NONE;
 }
@@ -1374,6 +1365,9 @@ const char* getReturnMessage(ReturnValue value)
 			
 		case RETURNVALUE_QUIVERAMMOONLY:
 			return "This quiver only holds arrows and bolts.\nYou cannot put any other items in it.";
+			
+		case RETURNVALUE_LOOTPOUCHINVALIDITEM:
+			return "Only autoloot items are allowed.\nYou cannot put any other items in it.";
 
 		default: // RETURNVALUE_NOTPOSSIBLE, etc
 			return "Sorry, not possible.";

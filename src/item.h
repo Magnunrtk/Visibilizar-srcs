@@ -25,6 +25,7 @@
 #include "items.h"
 #include "luascript.h"
 #include "tools.h"
+#include "imbuement.h"
 #include <typeinfo>
 
 #include <boost/variant.hpp>
@@ -110,8 +111,9 @@ enum AttrTypes_t {
 	ATTR_BOOST = 40,
 	ATTR_CLASSIFICATION = 41,
 	ATTR_TIER = 42,
-	ATTR_IMBUEMENTSLOTS = 43,
-	ATTR_AUTOOPEN = 44
+	ATTR_AUTOOPEN = 43,
+	ATTR_IMBUESLOTS = 44,
+	ATTR_IMBUEMENTS
 };
 
 enum Attr_ReadValue {
@@ -217,6 +219,7 @@ class ItemAttributes
 		void setDecaying(ItemDecayState_t decayState) {
 			setIntAttr(ITEM_ATTRIBUTE_DECAYSTATE, decayState);
 		}
+		
 		ItemDecayState_t getDecaying() const {
 			return static_cast<ItemDecayState_t>(getIntAttr(ITEM_ATTRIBUTE_DECAYSTATE));
 		}
@@ -522,7 +525,7 @@ class ItemAttributes
 			| ITEM_ATTRIBUTE_ARMOR | ITEM_ATTRIBUTE_HITCHANCE | ITEM_ATTRIBUTE_SHOOTRANGE | ITEM_ATTRIBUTE_OWNER
 			| ITEM_ATTRIBUTE_DURATION | ITEM_ATTRIBUTE_DECAYSTATE | ITEM_ATTRIBUTE_CORPSEOWNER | ITEM_ATTRIBUTE_CHARGES
 			| ITEM_ATTRIBUTE_FLUIDTYPE | ITEM_ATTRIBUTE_DOORID | ITEM_ATTRIBUTE_DECAYTO | ITEM_ATTRIBUTE_ATTACK_SPEED 
-			| ITEM_ATTRIBUTE_CLASSIFICATION | ITEM_ATTRIBUTE_TIER | ITEM_ATTRIBUTE_IMBUEMENTSLOTS | ITEM_ATTRIBUTE_AUTOOPEN;
+			| ITEM_ATTRIBUTE_CLASSIFICATION | ITEM_ATTRIBUTE_TIER | ITEM_ATTRIBUTE_AUTOOPEN;
 
 		const static uint32_t stringAttributeTypes = ITEM_ATTRIBUTE_DESCRIPTION | ITEM_ATTRIBUTE_TEXT | ITEM_ATTRIBUTE_WRITER
 			| ITEM_ATTRIBUTE_NAME | ITEM_ATTRIBUTE_ARTICLE | ITEM_ATTRIBUTE_PLURALNAME;
@@ -808,6 +811,13 @@ class Item : virtual public Thing
 			}
 			return static_cast<ItemDecayState_t>(getIntAttr(ITEM_ATTRIBUTE_DECAYSTATE));
 		}
+		
+		int32_t getDecayTime() const {
+			if (hasAttribute(ITEM_ATTRIBUTE_DURATION)) {
+				return getIntAttr(ITEM_ATTRIBUTE_DURATION);
+			}
+			return items[id].decayTime;
+		}
 
 		void setDecayTo(int32_t decayTo) {
 			setIntAttr(ITEM_ATTRIBUTE_DECAYTO, decayTo);
@@ -818,6 +828,9 @@ class Item : virtual public Thing
 			}
 			return items[id].decayTo;
 		}
+		
+		const bool isEquipped() const;
+		void decayImbuements(bool infight);
 
 		static std::string getDescription(const ItemType& it, int32_t lookDistance, const Item* item = nullptr, int32_t subType = -1, bool addArticle = true);
 		static std::string getNameDescription(const ItemType& it, const Item* item = nullptr, int32_t subType = -1, bool addArticle = true);
@@ -895,12 +908,6 @@ class Item : virtual public Thing
 				return getIntAttr(ITEM_ATTRIBUTE_TIER);
 			}
 			return items[id].tier;
-		}
-		uint32_t getImbuementSlots() const {
-			if (hasAttribute(ITEM_ATTRIBUTE_IMBUEMENTSLOTS)) {
-				return getIntAttr(ITEM_ATTRIBUTE_IMBUEMENTSLOTS);
-			}
-			return items[id].imbuementslots;
 		}
 		int32_t getArmor() const {
 			if (hasAttribute(ITEM_ATTRIBUTE_ARMOR)) {
@@ -1051,6 +1058,8 @@ class Item : virtual public Thing
 		bool isCleanable() const {
 			return !loadedFromMap && canRemove() && isPickupable() && !hasAttribute(ITEM_ATTRIBUTE_UNIQUEID) && !hasAttribute(ITEM_ATTRIBUTE_ACTIONID);
 		}
+		
+		bool hasMarketAttributes() const;
 
 		std::unique_ptr<ItemAttributes>& getAttributes() {
 			if (!attributes) {
@@ -1082,6 +1091,18 @@ class Item : virtual public Thing
 			return !parent || parent->isRemoved();
 		}
 		
+		uint16_t getImbuementSlots() const;
+		uint16_t getFreeImbuementSlots() const;
+		bool canImbue() const;
+		bool addImbuementSlots(const uint16_t amount);
+		bool removeImbuementSlots(const uint16_t amount, const bool destroyImbues = false);
+		bool hasImbuementType(const ImbuementType imbuetype) const;
+		bool hasImbuement(const std::shared_ptr<Imbuement>& imbuement) const;
+		bool hasImbuements() const; /// change to isImbued();
+		bool addImbuement(std::shared_ptr<Imbuement> imbuement, bool created = true);
+		bool removeImbuement(std::shared_ptr<Imbuement> imbuement, bool decayed = false);
+		std::vector<std::shared_ptr<Imbuement>>& getImbuements();
+		
 		int8_t getAutoOpen()
 		{
 			if (hasAttribute(ITEM_ATTRIBUTE_AUTOOPEN)) {
@@ -1107,6 +1128,9 @@ class Item : virtual public Thing
 		std::string getWeightDescription(uint32_t weight) const;
 
 		std::unique_ptr<ItemAttributes> attributes;
+		
+		uint16_t imbuementSlots = 0;
+		std::vector<std::shared_ptr<Imbuement>> imbuements;
 
 		uint32_t referenceCounter = 0;
 

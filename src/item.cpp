@@ -27,14 +27,17 @@
 #include "house.h"
 #include "game.h"
 #include "bed.h"
+#include "scheduler.h"
 #include "rewardchest.h"
 
 #include "actions.h"
 #include "spells.h"
+#include "events.h"
 
 extern Game g_game;
 extern Spells* g_spells;
 extern Vocations g_vocations;
+extern Events* g_events;
 
 Items Item::items;
 
@@ -70,16 +73,6 @@ Item* Item::CreateItem(const uint16_t type, uint16_t count /*= 0*/)
 			newItem = new Mailbox(type);
 		} else if (it.isBed()) {
 			newItem = new BedItem(type);
-		} else if (it.id >= 2210 && it.id <= 2212) { // magic rings
-			newItem = new Item(type - 3, count);
-		} else if (it.id == 2215 || it.id == 2216) { // magic rings
-			newItem = new Item(type - 2, count);
-		} else if (it.id >= 2202 && it.id <= 2206) { // magic rings
-			newItem = new Item(type - 37, count);
-		} else if (it.id == 2640) { // soft boots
-			newItem = new Item(6132, count);
-		} else if (it.id == 6301) { // death ring
-			newItem = new Item(6300, count);
 		} else {
 			newItem = new Item(type, count);
 		}
@@ -164,6 +157,10 @@ Item::Item(const uint16_t type, uint16_t count /*= 0*/) :
 		} else {
 			setCharges(it.charges);
 		}
+	}
+	
+	if (it.imbuementslots != 0) {
+		addImbuementSlots(it.imbuementslots);
 	}
 
 	setDefaultDuration();
@@ -561,16 +558,16 @@ Attr_ReadValue Item::readAttr(AttrTypes_t attr, PropStream& propStream)
 			break;
 		}
 		
-		case ATTR_IMBUEMENTSLOTS: {
-			uint32_t imbuementslots;
-			if (!propStream.read<uint32_t>(imbuementslots)) {
+		case ATTR_IMBUESLOTS: {
+			uint32_t slots;
+			if (!propStream.read<uint32_t>(slots)) {
 				return ATTR_READ_ERROR;
 			}
 
-			setIntAttr(ITEM_ATTRIBUTE_IMBUEMENTSLOTS, imbuementslots);
+			imbuementSlots = slots;
 			break;
 		}
-
+		
 		case ATTR_DEFENSE: {
 			int32_t defense;
 			if (!propStream.read<int32_t>(defense)) {
@@ -665,6 +662,23 @@ Attr_ReadValue Item::readAttr(AttrTypes_t attr, PropStream& propStream)
 				}
 
 				getAttributes()->boostPercent[combatType] = percent;
+			}
+			break;
+		}
+		
+		case ATTR_IMBUEMENTS: {
+			uint16_t size;
+			if (!propStream.read<uint16_t>(size)) {
+				return ATTR_READ_ERROR;
+			}
+
+			for (uint16_t i = 0; i < size; ++i) {
+				std::shared_ptr<Imbuement> imb = std::make_shared<Imbuement>();
+				if (!imb->unserialize(propStream)) {
+					return ATTR_READ_ERROR;
+				}
+
+				addImbuement(imb, false);
 			}
 			break;
 		}
@@ -874,12 +888,11 @@ void Item::serializeAttr(PropWriteStream& propWriteStream) const
 		propWriteStream.write<uint32_t>(getIntAttr(ITEM_ATTRIBUTE_TIER));
 	}
 	
-	if (hasAttribute(ITEM_ATTRIBUTE_IMBUEMENTSLOTS)) {
-		propWriteStream.write<uint8_t>(ATTR_IMBUEMENTSLOTS);
-		propWriteStream.write<uint32_t>(getIntAttr(ITEM_ATTRIBUTE_IMBUEMENTSLOTS));
+	if (getImbuementSlots() > 0) {
+		propWriteStream.write<uint8_t>(ATTR_IMBUESLOTS);
+		propWriteStream.write<uint32_t>(imbuementSlots);
 	}
 	
-
 	if (hasAttribute(ITEM_ATTRIBUTE_DEFENSE)) {
 		propWriteStream.write<uint8_t>(ATTR_DEFENSE);
 		propWriteStream.write<int32_t>(getIntAttr(ITEM_ATTRIBUTE_DEFENSE));
@@ -950,6 +963,14 @@ void Item::serializeAttr(PropWriteStream& propWriteStream) const
 				propWriteStream.write<CombatType_t>(boost.first);
 				propWriteStream.write<uint16_t>(boost.second);
 			}
+		}
+	}
+	
+	if (hasImbuements()) {
+		propWriteStream.write<uint8_t>(ATTR_IMBUEMENTS);
+		propWriteStream.write<uint16_t>(imbuements.size());
+		for (auto entry : imbuements) {
+			entry->serialize(propWriteStream);
 		}
 	}
 }
@@ -1489,7 +1510,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
             }
       
             // Show healthGain/healthTicks on item
-            if (it.abilities->manaGain) {
+            if (it.abilities->healthGain) {
                 if (begin) {
                     begin = false;
                     s << " (";
@@ -1866,7 +1887,7 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 				s << "Health Recovery +" << it.abilities->healthGain << " each/" << std::fixed << std::setprecision(1) << it.abilities->healthTicks / 1000. << "s";
             }
             // Show manaGain/manaTicks on item
-            if (it.abilities->healthGain) {
+            if (it.abilities->manaGain) {
                 if (begin) {
                     begin = false;
                     s << " (";
@@ -2057,28 +2078,6 @@ std::string Item::getDescription(const ItemType& it, int32_t lookDistance,
 		s << '.';
 	}
 	
-	// Show Imbuements Slots
-	uint32_t imbuementslots = item ? item->getImbuementSlots() : it.imbuementslots;
-	
-	if (imbuementslots) {
-		s << "\nImbuements: (Empty Slot";
-
-		// Add multiple slots if more than one
-		for (uint32_t i = 1; i < imbuementslots; ++i) {
-			s << ", Empty Slot";
-		}
-
-		s << ").";
-	}
-	
-	// Show Classification and Tier on item 
-    uint32_t classification = item ? item->getClassification() : it.classification;
-	uint32_t tier = item ? item->getTier() : it.tier;
-	
-    if (classification) {
-		s << "\nClassification: " << classification << " Tier: " << tier << ".";
-	}
-	
 	if (lookDistance <= 7) {
 		if (item) {
 			const uint32_t weight = item->getWeight();
@@ -2215,8 +2214,7 @@ bool Item::canDecay() const
 		return false;
 	}
 
-	const ItemType& it = Item::items[id];
-	if (getDecayTo() < 0 || it.decayTime == 0) {
+	if (getDecayTo() < 0 || getDecayTime() == 0) {
 		return false;
 	}
 
@@ -2389,6 +2387,30 @@ void Item::startDecaying()
 	g_game.startDecay(this);
 }
 
+bool Item::hasMarketAttributes() const
+{
+	if (attributes == nullptr) {
+		return true;
+	}
+
+	for (const auto& attr : attributes->getList()) {
+		if (attr.type == ITEM_ATTRIBUTE_CHARGES) {
+			uint16_t charges = static_cast<uint16_t>(attr.value.integer);
+			if (charges != items[id].charges) {
+				return false;
+			}
+		} else if (attr.type == ITEM_ATTRIBUTE_DURATION) {
+			uint32_t duration = static_cast<uint32_t>(attr.value.integer);
+			if (duration != getDefaultDuration()) {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	}
+	return true;
+}
+
 template<>
 const std::string& ItemAttributes::CustomAttribute::get<std::string>() {
 	if (value.type() == typeid(std::string)) {
@@ -2423,4 +2445,178 @@ const bool& ItemAttributes::CustomAttribute::get<bool>() {
 	}
 
 	return emptyBool;
+}
+
+const bool Item::isEquipped() const {
+	Player* player = getHoldingPlayer();
+	if (player) {
+		for (uint32_t slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; slot++) {
+			if(player->getInventoryItem(slot) == this) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+uint16_t Item::getImbuementSlots() const
+{
+	// item:getImbuementSlots() -- returns how many total slots
+	return imbuementSlots;
+}
+
+uint16_t Item::getFreeImbuementSlots() const
+{
+	// item:getFreeImbuementSLots() -- returns how many slots are available for use
+	return (imbuementSlots - (static_cast<uint16_t>(imbuements.size())));
+}
+
+bool Item::canImbue() const
+{
+	// item:canImbue() -- returns true if item has slots that are free
+	return (imbuementSlots > 0 && imbuementSlots > imbuements.size()) ? true : false;
+}
+
+bool Item::addImbuementSlots(const uint16_t amount)
+{
+	// item:addImbuementSlots(amount) -- tries to add imbuement slot, returns true if successful
+	constexpr uint16_t limit = std::numeric_limits<uint16_t>::max(); // uint16_t size limit
+	const uint16_t currentSlots = static_cast<uint16_t>(imbuements.size());
+
+	if ((currentSlots + amount) >= limit)
+	{
+		std::cout << "Warning in call to Item:addImbuementSlots(). Total added would be more than supported memory limit!" << std::endl;
+		return false;
+	}
+
+	imbuementSlots += amount;
+	return true;
+}
+
+bool Item::removeImbuementSlots(const uint16_t amount, const bool destroyImbues)
+{
+	// item:removeImbuementSlots(amount, destroy) -- tries to remove imbuement slot(s), returns true if successful
+	constexpr uint16_t limit = std::numeric_limits<uint16_t>::max(); // uint16_t size limit
+	const uint16_t currentSlots = static_cast<uint16_t>(imbuements.size());
+
+	if (currentSlots <= 0)
+	{
+		std::cout << "Warning in call to Item:removeImbuementSlots(). Item has no slots to remove!" << std::endl;
+		return false;
+	}
+
+	if ((amount + currentSlots) > limit)
+	{
+		std::cout << "Warning in call to Item:removeImbuementSlots(). Amount is bigger than supported memory limit!" << std::endl;
+		return false;
+	}
+
+	const uint16_t freeSlots = getFreeImbuementSlots();
+	const uint16_t difference = amount - currentSlots;
+
+	if (difference >= imbuementSlots || difference >= limit)
+	{
+		std::cout << "Warning in call to Item:removeImbuementSlots(). You are trying to remove too many slots!" << std::endl;
+		return false;
+	}
+
+	if (destroyImbues)
+	{
+		if (difference < currentSlots)
+		{
+			imbuements.erase(imbuements.begin(), imbuements.begin() + amount);
+		}
+	} else {
+		if (freeSlots < currentSlots) {
+			return false;
+		}
+	}
+
+	imbuementSlots -= amount;
+	return true;
+}
+
+bool Item::hasImbuementType(const ImbuementType imbuetype) const
+{
+	// item:hasImbuementType(type)
+	return std::any_of(imbuements.begin(), imbuements.end(), [imbuetype](std::shared_ptr<Imbuement> elem) {
+		return elem->imbuetype == imbuetype;
+		});
+}
+
+bool Item::hasImbuement(const std::shared_ptr<Imbuement>& imbuement) const
+{
+	// item:hasImbuement(imbuement)
+	return std::any_of(imbuements.begin(), imbuements.end(), [&imbuement](const std::shared_ptr<Imbuement>& elem) {
+		return elem == imbuement;
+		});
+}
+
+
+bool Item::hasImbuements() const
+{
+	// item:hasImbuements() -- returns true if item has any imbuements
+	return imbuements.size() > 0;
+}
+
+bool Item::addImbuement(std::shared_ptr<Imbuement>  imbuement, bool created)
+{
+	// item:addImbuement(imbuement) -- returns true if it successfully adds the imbuement
+	if (canImbue() && getFreeImbuementSlots() > 0 && g_events->eventItemOnImbue(this, imbuement, created))
+	{
+		imbuements.push_back(imbuement);
+		
+		for (auto imbue : imbuements) {
+			if (imbue == imbuement) {
+				Player* player = getHoldingPlayer();
+				if (player && isEquipped()) {
+					player->addImbuementEffect(imbue);
+				}
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
+bool Item::removeImbuement(std::shared_ptr<Imbuement> imbuement, bool decayed)
+{
+    // item:removeImbuement(imbuement) -- returns true if it found and removed the imbuement
+	for (auto imbue : imbuements) {
+		if (imbue == imbuement) {
+			
+			Player* player = getHoldingPlayer();
+			if (player && isEquipped()) {
+				player->removeImbuementEffect(imbue);
+			}
+			
+			g_events->eventItemOnRemoveImbue(this, imbuement->imbuetype, decayed);
+			imbuements.erase(std::remove(imbuements.begin(), imbuements.end(), imbue), imbuements.end());
+			return true;
+		}
+	}
+    return false;
+}
+
+std::vector<std::shared_ptr<Imbuement>>& Item::getImbuements() {
+	return imbuements;
+}
+
+void Item::decayImbuements(bool infight) {
+	for (const auto& imbue : imbuements) {
+		if (imbue->isEquipDecay()) {
+			imbue->duration -= 1;
+			if (imbue->duration <= 0) {
+				removeImbuement(imbue, true);
+				return;
+			}
+		}
+		if (imbue->isInfightDecay() && infight) {
+			imbue->duration -= 1;
+			if (imbue->duration <= 0) {
+				removeImbuement(imbue, true);
+				return;
+			}
+		}
+	}
 }

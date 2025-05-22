@@ -71,7 +71,6 @@ enum ItemParseAttributes_t {
 	ITEM_PARSE_ATTACK_SPEED,
 	ITEM_PARSE_CLASSIFICATION,
 	ITEM_PARSE_TIER,
-	ITEM_PARSE_IMBUEMENTSLOTS,
 	ITEM_PARSE_ROTATETO,
 	ITEM_PARSE_MOVEABLE,
 	ITEM_PARSE_BLOCKPROJECTILE,
@@ -175,6 +174,7 @@ enum ItemParseAttributes_t {
 	ITEM_PARSE_BLOCKING,
 	ITEM_PARSE_ALLOWDISTREAD,
 	ITEM_PARSE_STOREITEM,
+	ITEM_PARSE_IMBUEMENT_SLOT,
 	ITEM_PARSE_WORTH,
 	ITEM_PARSE_REFLECTPERCENTALL,
 	ITEM_PARSE_REFLECTPERCENTELEMENTS,
@@ -371,7 +371,6 @@ class ItemType
 		uint32_t attackSpeed = 0;
 		uint32_t classification = 0;
 		uint32_t tier = 0;
-		uint32_t imbuementslots = 0;
 		uint32_t weight = 0;
 		uint32_t levelDoor = 0;
 		uint32_t decayTime = 0;
@@ -403,6 +402,7 @@ class ItemType
 		uint16_t slotPosition = SLOTP_HAND;
 		uint16_t speed = 0;
 		uint16_t wareId = 0;
+		uint16_t imbuementslots = 0;
 
 		MagicEffectClasses magicEffect = CONST_ME_NONE;
 		Direction bedPartnerDir = DIRECTION_NONE;

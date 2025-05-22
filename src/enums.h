@@ -95,8 +95,7 @@ enum itemAttrTypes : uint32_t {
 	ITEM_ATTRIBUTE_ATTACK_SPEED = 1 << 26,
 	ITEM_ATTRIBUTE_CLASSIFICATION = 1 << 27,
 	ITEM_ATTRIBUTE_TIER = 1 << 28,
-	ITEM_ATTRIBUTE_IMBUEMENTSLOTS = 1 << 29,
-	ITEM_ATTRIBUTE_AUTOOPEN = 1 << 30,
+	ITEM_ATTRIBUTE_AUTOOPEN = 1 << 29,
 
 	ITEM_ATTRIBUTE_CUSTOM = 1U << 31
 };
@@ -109,6 +108,11 @@ enum VipStatus_t : uint8_t {
 enum MarketAction_t {
 	MARKETACTION_BUY = 0,
 	MARKETACTION_SELL = 1,
+};
+
+enum MarketRequest_t {
+	MARKETREQUEST_OWN_OFFERS = 0xFFFE,
+	MARKETREQUEST_OWN_HISTORY = 0xFFFF,
 };
 
 enum MarketOfferState_t {
@@ -141,6 +145,8 @@ enum OperatingSystem_t : uint8_t {
 	CLIENTOS_LINUX = 1,
 	CLIENTOS_WINDOWS = 2,
 	CLIENTOS_FLASH = 3,
+
+	CLIENTOS_DLL_CUSTOM = 5,
 
 	CLIENTOS_OTCLIENT_LINUX = 10,
 	CLIENTOS_OTCLIENT_WINDOWS = 11,
@@ -480,6 +486,7 @@ enum ReturnValue {
 	RETURNVALUE_ITEMCANNOTBEMOVEDTHERE,
 	RETURNVALUE_YOUCANNOTUSETHISBED,
 	RETURNVALUE_QUIVERAMMOONLY,
+	RETURNVALUE_LOOTPOUCHINVALIDITEM,
 	RETURNVALUE_REWARDCHESTISEMPTY,
 };
 
@@ -600,6 +607,7 @@ enum CombatOrigin
 	ORIGIN_RANGED,
 	ORIGIN_WAND,
 	ORIGIN_REFLECT,
+	ORIGIN_IMBUEMENT,
 };
 
 struct CombatDamage
@@ -615,6 +623,8 @@ struct CombatDamage
 	bool leeched = false;
 };
 
+using MarketOfferList = std::list<MarketOffer>;
+using HistoryMarketOfferList = std::list<HistoryMarketOffer>;
 using ShopInfoList = std::list<ShopInfo>;
 
 enum MonstersEvent_t : uint8_t {
@@ -632,7 +642,7 @@ struct Reflect {
 
 	Reflect& operator+=(const Reflect& other) {
 		percent += other.percent;
-		chance = std::min(100, chance + other.chance);
+		chance = static_cast<uint16_t>(std::min(100, chance + other.chance));
 		return *this;
 	}
 

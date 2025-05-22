@@ -26,29 +26,64 @@
 
 extern ConfigManager g_config;
 
-Database::~Database()
+static bool connectToDatabase(MYSQL*& handle, const bool retryIfError)
 {
-	if (handle != nullptr) {
-		mysql_close(handle);
-	}
-}
+	bool isFirstAttemptToConnect = true;
 
-bool Database::connect()
-{
+retry:
+	if (!isFirstAttemptToConnect) {
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+
+	// close the connection handle
+	mysql_close(handle);
 	// connection handle initialization
 	handle = mysql_init(nullptr);
 	if (!handle) {
 		std::cout << std::endl << "Failed to initialize MySQL connection handle." << std::endl;
-		return false;
+		goto error;
 	}
-
-	// automatic reconnect
-	bool reconnect = true;
-	mysql_options(handle, MYSQL_OPT_RECONNECT, &reconnect);
 
 	// connects to database
 	if (!mysql_real_connect(handle, g_config.getString(ConfigManager::MYSQL_HOST).c_str(), g_config.getString(ConfigManager::MYSQL_USER).c_str(), g_config.getString(ConfigManager::MYSQL_PASS).c_str(), g_config.getString(ConfigManager::MYSQL_DB).c_str(), g_config.getNumber(ConfigManager::SQL_PORT), g_config.getString(ConfigManager::MYSQL_SOCK).c_str(), 0)) {
 		std::cout << std::endl << "MySQL Error Message: " << mysql_error(handle) << std::endl;
+		goto error;
+	}
+	return true;
+
+error:
+	if (retryIfError) {
+		goto retry;
+	}
+	return false;
+}
+
+static bool isLostConnectionError(const unsigned error)
+{
+	return error == CR_SERVER_LOST || error == CR_SERVER_GONE_ERROR || error == CR_CONN_HOST_ERROR ||
+	    error == 1053 /*ER_SERVER_SHUTDOWN*/ || error == CR_CONNECTION_ERROR;
+}
+
+static bool executeQuery(MYSQL*& handle, const std::string_view query, const bool retryIfLostConnection)
+{
+	while (mysql_real_query(handle, query.data(), query.length()) != 0) {
+		std::cout << "[Error - mysql_real_query] Query: " << query.substr(0, 256) << std::endl
+		          << "Message: " << mysql_error(handle) << std::endl;
+		const unsigned error = mysql_errno(handle);
+		if (!isLostConnectionError(error) || !retryIfLostConnection) {
+			return false;
+		}
+		connectToDatabase(handle, true);
+	}
+
+	return true;
+}
+
+Database::~Database() { mysql_close(handle); }
+
+bool Database::connect()
+{
+	if (!connectToDatabase(handle, false)) {
 		return false;
 	}
 
@@ -61,77 +96,45 @@ bool Database::connect()
 
 bool Database::beginTransaction()
 {
-	if (!executeQuery("BEGIN")) {
-		return false;
+	databaseLock.lock();
+	const bool result = executeQuery("START TRANSACTION");
+	retryQueries = !result;
+	if (!result) {
+		databaseLock.unlock();
 	}
 
-	databaseLock.lock();
-	return true;
+	return result;
 }
 
 bool Database::rollback()
 {
-	if (mysql_rollback(handle) != 0) {
-		std::cout << "[Error - mysql_rollback] Message: " << mysql_error(handle) << std::endl;
-		databaseLock.unlock();
-		return false;
-	}
-
+	const bool result = executeQuery("ROLLBACK");
+	retryQueries = true;
 	databaseLock.unlock();
-	return true;
+	return result;
 }
 
 bool Database::commit()
 {
-	if (mysql_commit(handle) != 0) {
-		std::cout << "[Error - mysql_commit] Message: " << mysql_error(handle) << std::endl;
-		databaseLock.unlock();
-		return false;
-	}
-
+	const bool result = executeQuery("COMMIT");
+	retryQueries = true;
 	databaseLock.unlock();
-	return true;
+	return result;
 }
 
 bool Database::executeQuery(const std::string& query)
 {
-	bool success = true;
-
-	// executes the query
-	databaseLock.lock();
-
-	while (mysql_real_query(handle, query.c_str(), query.length()) != 0) {
-		std::cout << "[Error - mysql_real_query] Query: " << query.substr(0, 256) << std::endl << "Message: " << mysql_error(handle) << std::endl;
-		auto error = mysql_errno(handle);
-		if (error != CR_SERVER_LOST && error != CR_SERVER_GONE_ERROR && error != CR_CONN_HOST_ERROR && error != 1053/*ER_SERVER_SHUTDOWN*/ && error != CR_CONNECTION_ERROR) {
-			success = false;
-			break;
-		}
-		std::this_thread::sleep_for(std::chrono::seconds(1));
-	}
-
-	MYSQL_RES* m_res = mysql_store_result(handle);
-	databaseLock.unlock();
-
-	if (m_res) {
-		mysql_free_result(m_res);
-	}
-
-	return success;
+	std::lock_guard<std::recursive_mutex> lockGuard(databaseLock);
+	return ::executeQuery(handle, query, retryQueries);
 }
 
 DBResult_ptr Database::storeQuery(const std::string& query)
 {
-	databaseLock.lock();
+	std::lock_guard<std::recursive_mutex> lockGuard(databaseLock);
 
 	retry:
-	while (mysql_real_query(handle, query.c_str(), query.length()) != 0) {
-		std::cout << "[Error - mysql_real_query] Query: " << query << std::endl << "Message: " << mysql_error(handle) << std::endl;
-		auto error = mysql_errno(handle);
-		if (error != CR_SERVER_LOST && error != CR_SERVER_GONE_ERROR && error != CR_CONN_HOST_ERROR && error != 1053/*ER_SERVER_SHUTDOWN*/ && error != CR_CONNECTION_ERROR) {
-			break;
-		}
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+	if (!::executeQuery(handle, query, retryQueries) && !retryQueries) {
+		return nullptr;
 	}
 
 	// we should call that every time as someone would call executeQuery('SELECT...')
@@ -139,14 +142,12 @@ DBResult_ptr Database::storeQuery(const std::string& query)
 	MYSQL_RES* res = mysql_store_result(handle);
 	if (res == nullptr) {
 		std::cout << "[Error - mysql_store_result] Query: " << query << std::endl << "Message: " << mysql_error(handle) << std::endl;
-		auto error = mysql_errno(handle);
-		if (error != CR_SERVER_LOST && error != CR_SERVER_GONE_ERROR && error != CR_CONN_HOST_ERROR && error != 1053/*ER_SERVER_SHUTDOWN*/ && error != CR_CONNECTION_ERROR) {
-			databaseLock.unlock();
+		const unsigned error = mysql_errno(handle);
+		if (!isLostConnectionError(error) || !retryQueries) {
 			return nullptr;
 		}
 		goto retry;
 	}
-	databaseLock.unlock();
 
 	// retrieving results of query
 	DBResult_ptr result = std::make_shared<DBResult>(res);

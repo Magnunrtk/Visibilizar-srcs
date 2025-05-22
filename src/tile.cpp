@@ -1106,6 +1106,14 @@ void Tile::removeThing(Thing* thing, uint32_t count)
 	}
 }
 
+bool Tile::hasCreature(Creature* creature) const
+{
+	if (const CreatureVector* creatures = getCreatures()) {
+		return std::find(creatures->begin(), creatures->end(), creature) != creatures->end();
+	}
+	return false;
+}
+
 void Tile::removeCreature(Creature* creature)
 {
 	g_game.map.getQTNode(tilePos.x, tilePos.y)->removeCreature(creature);
@@ -1569,13 +1577,28 @@ bool Tile::isMoveableBlocking() const
 Item* Tile::getUseItem(int32_t index) const
 {
 	const TileItemVector* items = getItemList();
+	
 	if (!items || items->size() == 0) {
 		return ground;
 	}
 
 	if (Thing* thing = getThing(index)) {
-		return thing->getItem();
+		Item* thingItem = thing->getItem();
+		if (thingItem) {
+			return thingItem;
+		}
 	}
 
-	return nullptr;
+	Item* topDownItem = getTopDownItem();
+	if (topDownItem) {
+		return topDownItem;
+	}
+
+	for (auto it = items->rbegin(), end = items->rend(); it != end; ++it) {
+		if ((*it)->getDoor()) {
+			return (*it)->getItem();
+		}
+	}
+
+	return *items->begin();
 }

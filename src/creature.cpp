@@ -46,6 +46,9 @@ Creature::~Creature()
 
 	for (Condition* condition : conditions) {
 		condition->endCondition(this);
+	}
+	
+	for (auto condition : conditions) {
 		delete condition;
 	}
 }
@@ -499,7 +502,7 @@ void Creature::onCreatureMove(Creature* creature, const Tile* newTile, const Pos
 				lastStepCost = 2;
 			} else if (Position::getDistanceX(newPos, oldPos) >= 1 && Position::getDistanceY(newPos, oldPos) >= 1) {
 				//diagonal extra cost
-				lastStepCost = 3;
+				lastStepCost = 2;
 				if (getPlayer()) {
 					lastStepCost -= 1;
 				}
@@ -745,6 +748,10 @@ void Creature::onDeath()
 
 	if (master) {
 		setMaster(nullptr);
+		
+		if (dynamic_cast<Monster*>(this) != nullptr) {
+			decrementReferenceCounter();
+		}
 	}
 
 	if (droppedCorpse) {
@@ -910,10 +917,7 @@ BlockType_t Creature::blockHit(Creature* attacker, CombatType_t combatType, int3
 	if (attacker) {
 		if (Player* attackerPlayer = attacker->getPlayer()) {
 			for (int32_t slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; ++slot) {
-				if (!attackerPlayer->isItemAbilityEnabled(static_cast<slots_t>(slot))) {
-					continue;
-				}
-
+				
 				Item* item = attackerPlayer->getInventoryItem(static_cast<slots_t>(slot));
 				if (!item) {
 					continue;
@@ -922,6 +926,64 @@ BlockType_t Creature::blockHit(Creature* attacker, CombatType_t combatType, int3
 				const uint16_t boostPercent = item->getBoostPercent(combatType);
 				if (boostPercent != 0) {
 					damage += std::round(damage * (boostPercent / 100.));
+				}
+				
+				if (item->hasImbuements() && blockType == BLOCK_NONE) {
+					Combat imbueCombat;
+					CombatParams imbueParams;
+					CombatDamage imbueDamage;
+					imbueParams.aggressive = true;
+					imbueParams.ignoreResistances = false;
+					imbueParams.blockedByArmor = false;
+					imbueParams.blockedByShield = false;
+					imbueDamage.blockType = BLOCK_NONE;
+					imbueDamage.origin = ORIGIN_IMBUEMENT;
+					int32_t conversionAmount = 0;
+					for (auto imbuement : item->getImbuements()) {
+						conversionAmount = std::round(damage * (imbuement->value / 100.));
+						imbueDamage.primary.value = conversionAmount;
+						int32_t damageDifference = 0;
+						switch (imbuement->imbuetype) {
+							case IMBUEMENT_TYPE_FIRE_DAMAGE:
+								imbueParams.combatType = COMBAT_FIREDAMAGE;
+								imbueDamage.primary.type = COMBAT_FIREDAMAGE;
+								break;
+							case IMBUEMENT_TYPE_ENERGY_DAMAGE:
+								imbueParams.combatType = COMBAT_ENERGYDAMAGE;
+								imbueDamage.primary.type = COMBAT_ENERGYDAMAGE;
+								break;
+							case IMBUEMENT_TYPE_EARTH_DAMAGE:
+								imbueParams.combatType = COMBAT_EARTHDAMAGE;
+								imbueDamage.primary.type = COMBAT_EARTHDAMAGE;
+								break;
+							case IMBUEMENT_TYPE_ICE_DAMAGE:
+								imbueParams.combatType = COMBAT_ICEDAMAGE;
+								imbueDamage.primary.type = COMBAT_ICEDAMAGE;
+								break;
+							case IMBUEMENT_TYPE_HOLY_DAMAGE:
+								imbueParams.combatType = COMBAT_HOLYDAMAGE;
+								imbueDamage.primary.type = COMBAT_HOLYDAMAGE;
+								break;
+							case IMBUEMENT_TYPE_DEATH_DAMAGE:
+								imbueParams.combatType = COMBAT_DEATHDAMAGE;
+								imbueDamage.primary.type = COMBAT_DEATHDAMAGE;
+								break;
+							default:
+								break;
+						}
+
+						if (conversionAmount > 0) {
+							imbueDamage.primary.value = conversionAmount;
+							imbueCombat.doTargetCombat(attacker, this, imbueDamage, imbueParams);
+							imbueDamage.primary.value = 0;
+							imbueDamage.primary.type = COMBAT_NONE;
+							damageDifference = damage - conversionAmount;
+							if (damageDifference < 0) {
+								damage = (-conversionAmount);
+							}
+							damageDifference = 0;
+						}
+					}
 				}
 			}
 		}
@@ -1248,6 +1310,37 @@ bool Creature::addCondition(Condition* condition, bool force/* = false*/)
 			return false;
 		}
 	}
+	
+	auto casterId = condition->getParam(CONDITION_PARAM_OWNER);
+	if (condition->getType() == CONDITION_PARALYZE && this->getPlayer() && this->getPlayer()->isWearingImbuedItem() && this->getID() != static_cast<uint32_t>(casterId)) {
+		int32_t chance = 0;
+		for (int32_t slot = static_cast<int32_t>(CONST_SLOT_FIRST); slot <= static_cast<int32_t>(CONST_SLOT_LAST); ++slot) {
+			Item* item = this->getPlayer()->getInventoryItem(slot);
+			if (item && item->hasImbuementType(IMBUEMENT_TYPE_PARALYSIS_DEFLECTION)) {
+				for (auto imbuement : item->getImbuements()) {
+					if (imbuement->imbuetype == IMBUEMENT_TYPE_PARALYSIS_DEFLECTION) {
+						chance += imbuement->value;
+						break;
+					}
+				}
+			}
+		}
+
+		if (chance > 0) {
+			Creature* caster = g_game.getCreatureByID(casterId);
+			if (Player* player = caster->getPlayer()) {
+				player->addCondition(condition);
+				return true;
+			}
+			if (Monster* monster = caster->getMonster()) {
+				int32_t roll = uniform_random(1, 100);
+				if (roll <= chance) {
+					monster->addCondition(condition);
+					return true;
+				}
+			}
+		}
+	}
 
 	Condition* prevCond = getCondition(condition->getType(), condition->getId(), condition->getSubId());
 	if (prevCond) {
@@ -1265,6 +1358,7 @@ bool Creature::addCondition(Condition* condition, bool force/* = false*/)
 	delete condition;
 	return false;
 }
+
 
 bool Creature::addCombatCondition(Condition* condition)
 {
@@ -1459,15 +1553,15 @@ int64_t Creature::getStepDuration() const
 		return 0;
 	}
 
-	uint32_t groundSpeed;
+	uint32_t groundSpeed = 0;
 	int32_t stepSpeed = getStepSpeed();
+	
 	Item* ground = tile->getGround();
 	if (ground) {
 		groundSpeed = Item::items[ground->getID()].speed;
-		if (groundSpeed == 0) {
-			groundSpeed = 150;
-		}
-	} else {
+	}
+		
+	if (groundSpeed == 0) {
 		groundSpeed = 150;
 	}
 

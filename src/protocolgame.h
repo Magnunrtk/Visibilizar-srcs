@@ -66,7 +66,7 @@ class ProtocolGame final : public Protocol
 
 		explicit ProtocolGame(Connection_ptr connection) : Protocol(connection) {}
 
-		void login(const std::string& name, uint32_t accountId, OperatingSystem_t operatingSystem);
+		void login(const std::string& name, uint32_t accountId);
 		void spectate(const std::string& name, const std::string& password);
 		void logout(bool displayEffect, bool forced);
 
@@ -87,7 +87,7 @@ class ProtocolGame final : public Protocol
 		ProtocolGame_ptr getThis() {
 			return std::static_pointer_cast<ProtocolGame>(shared_from_this());
 		}
-		void connect(uint32_t playerId, OperatingSystem_t operatingSystem);
+		void connect(uint32_t playerId);
 		void disconnectClient(const std::string& message) const;
 		void writeToOutputBuffer(const NetworkMessage& msg);
 
@@ -138,13 +138,18 @@ class ProtocolGame final : public Protocol
 		void parsePassPartyLeadership(NetworkMessage& msg);
 		void parseEnableSharedPartyExperience(NetworkMessage& msg);
 		
-		void parseToggleMount(NetworkMessage& msg);
-		
 		void parseModalWindowAnswer(NetworkMessage& msg);
 		
 		//trade methods
 		void parseRequestTrade(NetworkMessage& msg);
 		void parseLookInTrade(NetworkMessage& msg);
+		
+		//market methods
+		void parseMarketLeave();
+		void parseMarketBrowse(NetworkMessage& msg);
+		void parseMarketCreateOffer(NetworkMessage& msg);
+		void parseMarketCancelOffer(NetworkMessage& msg);
+		void parseMarketAcceptOffer(NetworkMessage& msg);
 
 		//VIP methods
 		void parseAddVip(NetworkMessage& msg);
@@ -197,6 +202,14 @@ class ProtocolGame final : public Protocol
 		void sendShop(const ShopInfoList& itemList);
 		void sendCloseShop();
 		void sendSaleItemList(const std::list<ShopInfo>& shop);
+		void sendMarketEnter();
+		void sendMarketLeave();
+		void sendMarketBrowseItem(uint16_t itemId, const MarketOfferList& buyOffers, const MarketOfferList& sellOffers);
+		void sendMarketAcceptOffer(const MarketOfferEx& offer);
+		void sendMarketBrowseOwnOffers(const MarketOfferList& buyOffers, const MarketOfferList& sellOffers);
+		void sendMarketCancelOffer(const MarketOfferEx& offer);
+		void sendMarketBrowseOwnHistory(const HistoryMarketOfferList& buyOffers, const HistoryMarketOfferList& sellOffers);
+		void sendMarketDetail(uint16_t itemId);
 		void sendTradeItemRequest(const std::string& traderName, const Item* item, bool ack);
 		void sendCloseTrade();
 
@@ -213,7 +226,6 @@ class ProtocolGame final : public Protocol
 		void sendAnimatedText(const std::string& message, const Position& pos, TextColor_t color);
 
 		void sendCreatureLight(const Creature* creature);
-		void sendWorldLight(LightInfo lightInfo);
 
 		void sendCreatureSquare(const Creature* creature, SquareColor_t color);
 
@@ -301,6 +313,8 @@ class ProtocolGame final : public Protocol
 		void spectatorSay(const std::string text, uint16_t channelId);
 		void sendCastChannel();
 		void syncOpenContainers();
+
+		OperatingSystem_t operatingSystem = CLIENTOS_NONE;
 
 		int64_t lastSpectatorTurn = 0;
 		bool isSpectator = false;

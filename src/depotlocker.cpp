@@ -21,7 +21,7 @@
 
 #include "depotlocker.h"
 
-DepotLocker::DepotLocker(uint16_t type) : Container(type, 4) {}
+DepotLocker::DepotLocker(uint16_t type) : Container(type, 5) {}
 
 Attr_ReadValue DepotLocker::readAttr(AttrTypes_t attr, PropStream& propStream)
 {

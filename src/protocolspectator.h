@@ -295,6 +295,70 @@ class ProtocolSpectator {
             for (auto& it : spectators)
                 it->sendCloseShop();
         }
+		
+		void sendMarketEnter() {
+            if (owner)
+                owner->sendMarketEnter();
+
+            for (auto& it : spectators)
+                it->sendMarketEnter();
+        }
+		
+		void sendMarketLeave() {
+            if (owner)
+                owner->sendMarketLeave();
+
+            for (auto& it : spectators)
+                it->sendMarketLeave();
+        }
+		
+		void sendMarketBrowseItem(uint16_t itemId, const MarketOfferList& buyOffers, const MarketOfferList& sellOffers) {
+            if (owner)
+                owner->sendMarketBrowseItem(itemId, buyOffers, sellOffers);
+
+            for (auto& it : spectators)
+                it->sendMarketBrowseItem(itemId, buyOffers, sellOffers);
+        }
+		
+		void sendMarketBrowseOwnOffers(const MarketOfferList& buyOffers, const MarketOfferList& sellOffers) {
+            if (owner)
+                owner->sendMarketBrowseOwnOffers(buyOffers, sellOffers);
+
+            for (auto& it : spectators)
+                it->sendMarketBrowseOwnOffers(buyOffers, sellOffers);
+        }
+		
+		void sendMarketBrowseOwnHistory(const HistoryMarketOfferList& buyOffers, const HistoryMarketOfferList& sellOffers) {
+            if (owner)
+                owner->sendMarketBrowseOwnHistory(buyOffers, sellOffers);
+
+            for (auto& it : spectators)
+                it->sendMarketBrowseOwnHistory(buyOffers, sellOffers);
+        }
+		
+		void sendMarketDetail(uint16_t itemId) {
+            if (owner)
+                owner->sendMarketDetail(itemId);
+
+            for (auto& it : spectators)
+                it->sendMarketDetail(itemId);
+        }
+		
+		void sendMarketAcceptOffer(const MarketOfferEx& offer) {
+            if (owner)
+                owner->sendMarketAcceptOffer(offer);
+
+            for (auto& it : spectators)
+                it->sendMarketAcceptOffer(offer);
+        }
+		
+		void sendMarketCancelOffer(const MarketOfferEx& offer) {
+            if (owner)
+                owner->sendMarketCancelOffer(offer);
+
+            for (auto& it : spectators)
+                it->sendMarketCancelOffer(offer);
+        }
 
         void sendPrivateMessage(const Player *speaker, SpeakClasses type, const std::string &text) {
             if (owner)
@@ -533,15 +597,6 @@ class ProtocolSpectator {
             for (auto& it : spectators)
                 it->sendCreatureWalkthrough(creature, walkthrough);
         }
-
-        void sendWorldLight(LightInfo lightInfo) {
-            if (owner)
-                owner->sendWorldLight(lightInfo);
-
-            for (auto &it : spectators)
-                it->sendWorldLight(lightInfo);
-        }
-
 
         void sendCreatureSquare(const Creature *creature, SquareColor_t color) {
             if (owner)

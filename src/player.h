@@ -89,13 +89,6 @@ struct OpenContainer {
 	uint16_t index;
 };
 
-struct OutfitEntry {
-	constexpr OutfitEntry(uint16_t lookType, uint8_t addons) : lookType(lookType), addons(addons) {}
-
-	uint16_t lookType;
-	uint8_t addons;
-};
-
 static constexpr int16_t MINIMUM_SKILL_LEVEL = 10;
 
 struct Skill {
@@ -151,23 +144,25 @@ class Player final : public Creature, public Cylinder
 			return CREATURETYPE_PLAYER;
 		}
 		
-		uint8_t getCurrentMount() const;
-		void setCurrentMount(uint8_t mountId);
-		bool isMounted() const {
-			return defaultOutfit.lookMount != 0;
-		}
+		//uint16_t getRandomMount() const;
+		uint16_t getCurrentMount() const;
+		void setCurrentMount(uint16_t mountId);
+		bool isMounted() const { return defaultOutfit.lookMount != 0; }
+		bool hasMount() const { return defaultOutfit.lookMount != 0; }
+		
 		bool toggleMount(bool mount);
-		bool tameMount(uint8_t mountId);
-		bool untameMount(uint8_t mountId);
+		bool tameMount(uint16_t mountId);
+		bool untameMount(uint16_t mountId);
 		bool hasMount(const Mount* mount) const;
+		bool hasMounts() const;
 		void dismount();
-
+		
 		void sendFYIBox(const std::string& message) {
 			if (client) {
 				client->sendFYIBox(message);
 			}
 		}
-
+		
 		void setGUID(uint32_t guid) {
 			this->guid = guid;
 		}
@@ -330,13 +325,19 @@ class Player final : public Creature, public Cylinder
 
 		void addStorageValue(const uint32_t key, const int32_t value, const bool isLogin = false);
 		bool getStorageValue(const uint32_t key, int32_t& value) const;
-		void genReservedStorageRange();
 
 		void setGroup(Group* newGroup) {
 			group = newGroup;
 		}
 		Group* getGroup() const {
 			return group;
+		}
+		
+		void setInMarket(bool value) {
+			inMarket = value;
+		}
+		bool isInMarket() const {
+			return inMarket;
 		}
 		
 		int32_t getIdleTime() const { return idleTime; }
@@ -457,6 +458,8 @@ class Player final : public Creature, public Cylinder
 		}
 
 		Item* getInventoryItem(slots_t slot) const;
+		Item* getInventoryItem(uint32_t slot) const;
+		bool isInventorySlot(slots_t slot) const;
 
 		bool isItemAbilityEnabled(slots_t slot) const {
 			return inventoryAbilities[slot];
@@ -554,6 +557,16 @@ class Player final : public Creature, public Cylinder
 		bool closeShopWindow(bool sendCloseShopWindow = true);
 		bool updateSaleShopList(const Item* item);
 		bool hasShopItemForSale(uint32_t itemId, uint8_t subType) const;
+		
+		bool isWearingImbuedItem() const {
+			for (int32_t slot = CONST_SLOT_FIRST; slot <= CONST_SLOT_LAST; ++slot) {
+				Item* item = getInventoryItem(static_cast<slots_t>(slot));
+				if (item && item->hasImbuements()) {
+					return true;
+				}
+			}
+			return false;
+		}
 
 		void setChaseMode(bool mode);
 		void setFightMode(fightMode_t mode) {
@@ -862,7 +875,10 @@ class Player final : public Creature, public Cylinder
 		void onRemoveCreature(Creature* creature, bool isLogout) override;
 		void onCreatureMove(Creature* creature, const Tile* newTile, const Position& newPos,
 		                            const Tile* oldTile, const Position& oldPos, bool teleport) override;
-
+		
+		void onEquipInventory();
+		void onDeEquipInventory();
+		
 		void onAttackedCreatureDisappear(bool isLogout) override;
 		void onFollowCreatureDisappear(bool isLogout) override;
 
@@ -979,6 +995,47 @@ class Player final : public Creature, public Cylinder
 				client->sendCloseShop();
 			}
 		}
+		void sendMarketEnter() const {
+			if (client) {
+				client->sendMarketEnter();
+			}
+		}
+		void sendMarketLeave() {
+			inMarket = false;
+			if (client) {
+				client->sendMarketLeave();
+			}
+		}
+		void sendMarketBrowseItem(uint16_t itemId, const MarketOfferList& buyOffers, const MarketOfferList& sellOffers) const {
+			if (client) {
+				client->sendMarketBrowseItem(itemId, buyOffers, sellOffers);
+			}
+		}
+		void sendMarketBrowseOwnOffers(const MarketOfferList& buyOffers, const MarketOfferList& sellOffers) const {
+			if (client) {
+				client->sendMarketBrowseOwnOffers(buyOffers, sellOffers);
+			}
+		}
+		void sendMarketBrowseOwnHistory(const HistoryMarketOfferList& buyOffers, const HistoryMarketOfferList& sellOffers) const {
+			if (client) {
+				client->sendMarketBrowseOwnHistory(buyOffers, sellOffers);
+			}
+		}
+		void sendMarketDetail(uint16_t itemId) const {
+			if (client) {
+				client->sendMarketDetail(itemId);
+			}
+		}
+		void sendMarketAcceptOffer(const MarketOfferEx& offer) const {
+			if (client) {
+				client->sendMarketAcceptOffer(offer);
+			}
+		}
+		void sendMarketCancelOffer(const MarketOfferEx& offer) const {
+			if (client) {
+				client->sendMarketCancelOffer(offer);
+			}
+		}
 		void sendTradeItemRequest(const std::string& traderName, const Item* item, bool ack) const {
 			if (client) {
 				client->sendTradeItemRequest(traderName, item, ack);
@@ -987,11 +1044,6 @@ class Player final : public Creature, public Cylinder
 		void sendTradeClose() const {
 			if (client) {
 				client->sendCloseTrade();
-			}
-		}
-		void sendWorldLight(LightInfo lightInfo) {
-			if (client) {
-				client->sendWorldLight(lightInfo);
 			}
 		}
 		void sendChannelsDialog() {
@@ -1071,6 +1123,10 @@ class Player final : public Creature, public Cylinder
 		bool hasLearnedInstantSpell(const std::string& spellName) const;
 
 		void updateRegeneration();
+		void addItemImbuements(Item* item);
+		void removeItemImbuements(Item* item);
+		void addImbuementEffect(std::shared_ptr<Imbuement> imbue);
+		void removeImbuementEffect(std::shared_ptr<Imbuement> imbue);
 
 		const std::map<uint8_t, OpenContainer>& getOpenContainers() const {
 			return openContainers;
@@ -1094,7 +1150,6 @@ class Player final : public Creature, public Cylinder
 		void updateInventoryWeight();
 
 		void setNextWalkActionTask(SchedulerTask* task);
-		void setNextWalkTask(SchedulerTask* task);
 		void setNextActionTask(SchedulerTask* task, bool resetIdleTime = true);
 
 		void death(Creature* lastHitCreature) override;
@@ -1137,7 +1192,8 @@ class Player final : public Creature, public Cylinder
 		
 		std::map<uint32_t, Reward*> rewardMap;
 
-		std::vector<OutfitEntry> outfits;
+		std::map<uint16_t, uint8_t> outfits;
+		std::unordered_set<uint16_t> mounts;
 		GuildWarVector guildWarVector;
 
 		std::list<ShopInfo> shopItemList;
@@ -1201,6 +1257,7 @@ class Player final : public Creature, public Cylinder
 		uint32_t actionTaskEvent = 0;
 		uint32_t nextStepEvent = 0;
 		uint32_t walkTaskEvent = 0;
+		uint32_t classicAttackEvent = 0;
 		uint32_t MessageBufferTicks = 0;
 		uint32_t lastIP = 0;
 		uint32_t accountNumber = 0;
@@ -1237,12 +1294,14 @@ class Player final : public Creature, public Cylinder
 
 		bool chaseMode = false;
 		bool secureMode = false;
+		bool inMarket = false;
 		bool wasMounted = false;
 		bool ghostMode = false;
 		bool pzLocked = false;
 		bool isConnecting = false;
 		bool addAttackSkillPoint = false;
 		bool inventoryAbilities[CONST_SLOT_LAST + 1] = {};
+		bool randomizeMount = false;
 
 		static uint32_t playerAutoID;
 

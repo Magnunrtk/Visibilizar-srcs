@@ -23,6 +23,8 @@
 
 #include "game.h"
 
+#include "iomarket.h"
+
 #include "configmanager.h"
 #include "scriptmanager.h"
 #include "rsa.h"
@@ -137,10 +139,16 @@ void printServerVersion()
 #endif
 	std::cout << std::endl;
 
-	std::cout << "A server developed by " << STATUS_SERVER_DEVELOPERS << std::endl;
-	std::cout << "Downgraded and further developed by Nekiro" << std::endl;
-	std::cout << "Visit our forum for updates, support, and resources: http://otland.net/." << std::endl;
-	std::cout << std::endl;
+  std::cout << "::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" << std::endl;
+	std::cout << "::A server developed by Mark Samman, later modified by Mateus Roberto, Magnun Rocha.::" << std::endl;
+	std::cout << "::         Downgraded and further developed by Nekiro (TFS 1.5 8.6)                 ::" << std::endl;
+	std::cout << "::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" << std::endl;
+	std::cout << "::   Visit our forum for updates, support, and resources: http://otland.net/        ::" << std::endl;
+	std::cout << "::                                                                                  ::" << std::endl;
+	std::cout << "::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::" << std::endl;
+ 
+ 
+ 
 }
 
 void mainLoader(int, char*[], ServiceManager* services)
@@ -319,6 +327,9 @@ void mainLoader(int, char*[], ServiceManager* services)
 	}
 
 	g_game.map.houses.payHouses(rentPeriod);
+	
+	IOMarket::checkExpiredOffers();
+	IOMarket::getInstance().updateStatistics();
 
 	std::cout << ">> Loaded all modules, server starting up..." << std::endl;
 
